@@ -1,0 +1,36 @@
+name: QA
+
+on: [push, pull_request]
+
+env:
+  # black default
+  MAX_LINE_LENGTH: 88
+
+jobs:
+  check-qa:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2.5.0
+      - name: Setup Python
+        uses: actions/setup-python@v2.3.3
+        with:
+          python-version: 3.10
+          architecture: x64
+      - name: Check black formatting
+        run: |
+          pip install black==22.10.0
+          black --version
+          black --check .
+
+      - name: Check flake8 linting
+        run: |
+          pip install flake8==6.0.0
+          flake8 --version
+          flake8 . --count --max-line-length=$MAX_LINE_LENGTH --statistics
+
+      - name: Check import order with isort
+        run: |
+          pip install isort==5.10.1
+          isort --version
+          isort --profile black --check .
