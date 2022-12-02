@@ -1,0 +1,68 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+      - initial
+
+env:
+  SSH_KEY: /tmp/id_rsa
+
+jobs:
+  build-and-upload:
+    # building on ubuntu-20.04 so we'll link to glibc 2.31
+    # which is version in Debian bullseye as well while Ubuntu 22.04 has 2.35
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3.1.0
+      - name: Setup Python
+        uses: actions/setup-python@v4.3.0
+        with:
+          python-version: "3.10"
+          architecture: x64
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y python3-dev patchelf ccache build-essential
+      - name: Install python dependencies
+        run: |
+          pip install -U pip
+          pip install -U ordered-set zstandard nuitka
+          pip install -r requirements.txt
+      - name: Update environ (filename)
+        run: |
+          import os
+          ref = os.getenv("GITHUB_REF", "").split("/")[-1]
+          env = {"FILENAME": f"image-creator_{ref}"}
+          with open(os.getenv("GITHUB_ENV"), "a") as fh:
+            for name, value in env.items():
+              fh.write(f"{name}={value}\n")
+        shell: python
+      - name: Build image-creator
+        run: |
+          cd src
+          python -m nuitka \
+            --onefile \
+            --python-flag="no_site,no_warnings,no_asserts,no_docstrings" \
+            --include-package=image_creator \
+            --show-modules \
+            --warn-implicit-exceptions \
+            --warn-unusual-code \
+            --assume-yes-for-downloads \
+            --output-filename=$(dirname $PWD)/$FILENAME \
+            --remove-output \
+            --no-progressbar \
+            image_creator/
+      - name: Dump SSH Key to file
+        shell: bash
+        run: |
+          echo "${{secrets.ssh_key}}" > $SSH_KEY
+          chmod 600 $SSH_KEY
+      - name: Upload build to CI
+        run: scp -rp -P 30022 -i $SSH_KEY -o StrictHostKeyChecking=no $PWD/$FILENAME ci@tmp.kiwix.org:/data/tmp/ci/
+      - name: Set job summary
+        run: |
+          echo '### Artefacts' >> $GITHUB_STEP_SUMMARY
+          echo '- [${{ env.FILENAME }}](http://tmp.kiwix.org/ci//${{ env.FILENAME }})' >> $GITHUB_STEP_SUMMARY
