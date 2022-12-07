@@ -267,7 +267,7 @@ class Image:
         mount_point = pathlib.Path(
             tempfile.mkdtemp(dir=self.mount_in, prefix=f"part{part_num}_")
         )
-        fs = "msdos" if part_num == 1 else "ext4"
+        fs = "vfat" if part_num == 1 else "ext4"
         if mount_on(f"{self.loop_dev}p{part_num}", mount_point, fs):
             setattr(self, f"p{part_num}_mounted_on", mount_point)
         else:
