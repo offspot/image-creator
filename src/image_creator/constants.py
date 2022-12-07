@@ -57,8 +57,7 @@ class Options:
         if self.debug:
             self.logger.setLevel(logging.DEBUG)
 
-        if not self.check_only:
-            self.output_path = pathlib.Path(self.OUTPUT).expanduser().resolve()
+        self.output_path = pathlib.Path(self.OUTPUT).expanduser().resolve()
 
         if not self.BUILD_DIR:
             # holds reference to tempdir until Options is released

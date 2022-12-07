@@ -72,6 +72,7 @@ class CheckInputs(Step):
             "check_different_output",
             "check_target_path",
             "check_target_location",
+            "check_target_nondestructive",
         ):
             res = getattr(self, method).__call__(payload)
             if res != 0:
@@ -141,6 +142,10 @@ class CheckInputs(Step):
         return 0
 
     def check_target_path(self, payload: Dict[str, Any]) -> int:
+        # skip if --check-only
+        if payload["options"].check_only:
+            return 0
+
         if payload["options"].output_path.exists() and payload["options"].overwrite:
             logger.start_task("Removing target path…")
             try:
@@ -159,6 +164,9 @@ class CheckInputs(Step):
         return 0
 
     def check_target_location(self, payload: Dict[str, Any]) -> int:
+        # skip if --check-only
+        if payload["options"].check_only:
+            return 0
         logger.start_task("Testing target location…")
         try:
             payload["options"].output_path.touch()
@@ -167,7 +175,36 @@ class CheckInputs(Step):
             logger.fail_task(str(exc))
             return 3
         else:
-            logger.succeed_task()
+            logger.succeed_task(str(payload["options"].output_path))
+        return 0
+
+    def check_target_nondestructive(self, payload: Dict[str, Any]) -> int:
+        """--check-only friendly test for output
+
+        does not remove output if already present"""
+
+        # already tested
+        if not payload["options"].check_only:
+            return 0
+
+        logger.start_task("Testing target location…")
+        if not payload["options"].output_path.exists():
+            try:
+                payload["options"].output_path.touch()
+                payload["options"].output_path.unlink()
+            except Exception as exc:
+                logger.fail_task(str(exc))
+                return 3
+            else:
+                logger.succeed_task(str(payload["options"].output_path))
+        else:
+            try:
+                payload["options"].output_path.touch()
+            except Exception as exc:
+                logger.fail_task(str(exc))
+                return 3
+            else:
+                logger.succeed_task(str(payload["options"].output_path))
         return 0
 
 
