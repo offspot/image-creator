@@ -105,3 +105,4 @@ class DownloadImage(Step):
                 logger.succeed_task(
                     format_size(get_filesize(payload["options"].output_path))
                 )
+        return 0
