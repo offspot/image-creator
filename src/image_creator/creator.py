@@ -18,7 +18,7 @@ class ImageCreator:
 
         logger.message(banner)
 
-        self.machine = StepMachine(options=Global.options)
+        self.machine = StepMachine(options=Global.options, succeeded=False)
         for step in self.machine:
             logger.start_step(step.name)
             res = step.run(self.machine.payload)

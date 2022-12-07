@@ -1,6 +1,6 @@
 from image_creator.constants import logger
 from image_creator.logger import Status
-from image_creator.steps import VirtualInitStep
+from image_creator.steps import GivingFeedback, VirtualInitStep
 from image_creator.steps.base import DownloadImage
 from image_creator.steps.check_inputs import (
     CheckInputs,
@@ -42,6 +42,7 @@ class StepMachine:
         WritingOffspotConfig,
         UnmountingBootPart,
         DetachingImage,
+        GivingFeedback,
     ]
 
     def __init__(self, **kwargs):
@@ -98,8 +99,11 @@ class StepMachine:
                 logger.add_dot(status=Status.NOK)
             else:
                 logger.add_dot(status=Status.OK)
+
+        # delete created image file on failure (unless requested otherwise)
         if (
-            not self.payload["options"].keep_failed
+            not self.payload["suceeded"]
+            and not self.payload["options"].keep_failed
             and self.payload["options"].output_path
             and self.payload["options"].output_path.exists()
         ):

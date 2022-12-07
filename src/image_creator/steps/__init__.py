@@ -1,5 +1,7 @@
 from typing import Any, Dict
 
+from image_creator.constants import logger
+
 
 class Step:
     """StepInterface"""
@@ -26,3 +28,13 @@ class Step:
 
 class VirtualInitStep(Step):
     ...
+
+
+class GivingFeedback(Step):
+    name: str = "Giving creation feedback"
+
+    def run(self, payload: Dict[str, Any]) -> int:
+        payload["suceeded"] = True
+        logger.start_task("Image created successfuly")
+        logger.succeed_task(str(payload["options"].output_path))
+        return 0
