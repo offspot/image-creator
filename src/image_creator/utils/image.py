@@ -223,7 +223,7 @@ class Image:
 
     def attach(self):
         """attach image to loop device"""
-        if not self.loop_dev or not is_loopdev_free(self.loop_dev):
+        if not self.loop_dev or is_loopdev_free(self.loop_dev):
             detach_device(self.loop_dev, failsafe=True)
             self.loop_dev = None
             self.assign_loopdev()
