@@ -212,47 +212,58 @@ class ProcessingLocalContent(Step):
     def run(self, payload: Dict[str, Any]) -> int:
         mount_point = payload["image"].p3_mounted_on
 
+        if not payload["config"].non_remote_files:
+            logger.add_task("No local content to process")
+            return 0
+
         # only non-remote Files (plain and local)
         for file in payload["config"].non_remote_files:
-            dest_path = file.mounted_to(mount_point)
+            res = self.process_file(file, mount_point)
+            if res != 0:
+                return res
+        return 0
+
+    def process_file(self, file: File, mount_point: str):
+        dest_path = file.mounted_to(mount_point)
+        try:
+            ensure_dir(dest_path.parent)
+        except Exception as exc:
+            logger.fail_task(str(exc))
+            return 1
+
+        if file.is_plain:
+            logger.start_task(f"Writing plain text to {file.to}…")
             try:
-                ensure_dir(dest_path.parent)
-            except Exception as exc:
-                logger.fail_task(str(exc))
-                return 1
-
-            if file.is_plain:
-                logger.start_task(f"Writing plain text to {file.to}…")
-                try:
-                    size = dest_path.write_text(file.content)
-                except Exception as exc:
-                    logger.fail_task(str(exc))
-                    return 1
-                else:
-                    logger.succeed_task(format_size(size))
-                continue
-
-            src_path = pathlib.Path(file.url)
-
-            if file.is_direct:
-                logger.start_task(f"Copying file to {file.to}…")
-                try:
-                    shutil.copy2(src_path, dest_path)
-                except Exception as exc:
-                    logger.fail_task(str(exc))
-                    return 1
-                else:
-                    logger.succeed_task(format_size(get_filesize(dest_path)))
-                continue
-
-            logger.start_task(f"Expanding {self.via} file to {file.to}…")
-            try:
-                expand_file(src_path, dest_path, file.via)
+                size = dest_path.write_text(file.content)
             except Exception as exc:
                 logger.fail_task(str(exc))
                 return 1
             else:
-                logger.succeed_task(format_size(get_size_of(dest_path)))
+                logger.succeed_task(format_size(size))
+            return 0
+
+        src_path = pathlib.Path(file.url)
+
+        if file.is_direct:
+            logger.start_task(f"Copying file to {file.to}…")
+            try:
+                shutil.copy2(src_path, dest_path)
+            except Exception as exc:
+                logger.fail_task(str(exc))
+                return 1
+            else:
+                logger.succeed_task(format_size(get_filesize(dest_path)))
+            return 0
+
+        logger.start_task(f"Expanding {self.via} file to {file.to}…")
+        try:
+            expand_file(src_path, dest_path, file.via)
+        except Exception as exc:
+            logger.fail_task(str(exc))
+            return 1
+        else:
+            logger.succeed_task(format_size(get_size_of(dest_path)))
+
         return 0
 
 
@@ -263,6 +274,10 @@ class DownloadingContent(Step):
         mount_point = payload["image"].p3_mounted_on
 
         nb_remotes = len(payload["config"].remote_files)
+
+        if not nb_remotes:
+            logger.add_task("No content to download")
+            return 0
 
         dl_progress = MultiDownloadProgress(
             nb_total=nb_remotes,
