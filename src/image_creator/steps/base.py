@@ -28,7 +28,7 @@ class DownloadImage(Step):
         # we'll have to download it to build-dir then extract
         if rem_path.suffix == ".xz":
             xz_fpath = payload["options"].build_dir.joinpath(rem_path.name)
-            logger.start_task(f"Downloading {base_file} into {xz_fpath}…")
+            logger.start_task(f"Downloading {base_file.geturl()} into {xz_fpath}…")
             try:
                 download_file(base_file.geturl(), xz_fpath)
             except Exception as exc:
