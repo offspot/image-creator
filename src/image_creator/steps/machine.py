@@ -102,7 +102,7 @@ class StepMachine:
 
         # delete created image file on failure (unless requested otherwise)
         if (
-            not self.payload["suceeded"]
+            not self.payload["succeeded"]
             and not self.payload["options"].keep_failed
             and self.payload["options"].output_path
             and self.payload["options"].output_path.exists()

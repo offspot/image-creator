@@ -19,7 +19,7 @@ class Logger:
     - UI displays Steps and Tasks differently using symbols and indentation
     - Most tasks are visually represented based on ~state (not recorded)
       - running: started but not ended)
-      - suceeded: ended successfuly ; with an optional confirmation text
+      - succeeded: ended successfuly ; with an optional confirmation text
       - failed: ended unsuccessfuly ; providing reason
 
     Most of this logger's job is to abstract this visual organization behind a
