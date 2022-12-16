@@ -46,7 +46,7 @@ Image configuration is done through a YAML file which must match the following f
 |------------------|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `base`           | `string`       | Version ([official releases](https://drive.offspot.it/base/)) or URL to a base-image file. Accepts `file://` URLs. Accepts lzma encoded images using `.xz` suffix  |
 | `output.size`    | `string`/`int` | Requested size of output image. Accepts `auto` for an power-of-2 sized that can fit the content (⚠️ TBI)                                                           |
-| `oci_images`     | `string[]`     | List of OCI Image names. More specific the better. Prefer ghcr.io if possible                                                                                      |
+| `oci_images`     | `string[]`     | List of **specific** OCI Image names. Prefer ghcr.io if possible. [Format](https://github.com/opencontainers/.github/blob/master/docs/docs/introduction/digests.md)|
 | `files`          | `file[]`       | List of files to include on the data partition. See below. One of `url` or `content` must be present                                                               |
 | `files[].url`    | `string`       | URL to download file from                                                                                                                                          |
 | `files[].to`     | `string`       | [required] Path to store file at. Must be a descendent of `/data`                                                                                                  |
@@ -87,7 +87,7 @@ offspot:
         image: ghcr.io/offspot/kiwix-serve:dev
         command: /bin/sh -c "kiwix-serve /data/*.zim"
         volumes:
-          - "/data/content/zims:/data:ro"
+          - "/data/contents/zims:/data:ro"
         ports:
           - "80:80"
 
