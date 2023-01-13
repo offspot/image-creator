@@ -1,6 +1,5 @@
 import logging
 import pathlib
-import re
 import sys
 import tempfile
 import urllib.parse
@@ -9,6 +8,7 @@ from typing import Union
 
 from image_creator import __version__ as vers
 from image_creator.logger import Logger
+from image_creator.utils.misc import is_http
 
 # where will data partition be monted on final device.
 # used as reference for destinations in config file and in the UI
@@ -33,13 +33,16 @@ class Options:
     CONFIG_SRC: str
     OUTPUT: str
     BUILD_DIR: str
+    CACHE_DIR: str
 
+    show_cache: bool
     check_only: bool
     debug: bool
 
     config_path: pathlib.Path = None
     output_path: pathlib.Path = None
     build_dir: pathlib.Path = None
+    cache_dir: pathlib.Path = None
 
     keep_failed: bool
     overwrite: bool
@@ -49,7 +52,7 @@ class Options:
     logger: Logger = Logger()
 
     def __post_init__(self):
-        if re.match(r"^https?://", self.CONFIG_SRC):
+        if is_http(self.CONFIG_SRC):
             self.config_url = urllib.parse.urlparse(self.CONFIG_SRC)
         else:
             self.config_path = pathlib.Path(self.CONFIG_SRC).expanduser().resolve()
@@ -68,6 +71,9 @@ class Options:
         self.build_dir = (
             pathlib.Path(self.BUILD_DIR or self.__build_dir.name).expanduser().resolve()
         )
+
+        if self.CACHE_DIR:
+            self.cache_dir = pathlib.Path(self.CACHE_DIR).expanduser().resolve()
 
     @property
     def version(self):

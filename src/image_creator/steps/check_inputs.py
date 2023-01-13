@@ -8,8 +8,9 @@ except ImportError:
     # we don't NEED cython ext but it's faster so use it if avail.
     from yaml import Dumper, dump as yaml_dump
 
+
 from image_creator.constants import logger
-from image_creator.inputs import Config
+from image_creator.inputs import MainConfig
 from image_creator.steps import Step
 from image_creator.utils import requirements
 from image_creator.utils.download import read_text_from
@@ -68,7 +69,7 @@ class CheckInputs(Step):
         # checks split accross various methods to reduce complexity
         for method in (
             "check_parsing",
-            "check_params",
+            # "check_params",
             "check_different_output",
             "check_target_path",
             "check_target_location",
@@ -95,7 +96,7 @@ class CheckInputs(Step):
 
         logger.start_task("Parsing config data…")
         try:
-            payload["config"] = Config.read_from(text)
+            payload["config"] = MainConfig.read_from(text)
         except Exception as exc:
             logger.fail_task()
             logger.exception(exc)
@@ -104,26 +105,27 @@ class CheckInputs(Step):
             logger.succeed_task()
         return 0
 
-    def check_params(self, payload: Dict[str, Any]) -> int:
-        logger.start_task("Checking parameters…")
-        try:
-            if not payload["config"].init():
-                logger.fail_task("Config file is not valid")
-                logger.warning(
-                    "\n".join(
-                        [
-                            f"- [{key}] {error}"
-                            for key, error in payload["config"].errors
-                        ]
-                    )
-                )
-                return 3
-            else:
-                logger.succeed_task()
-        except Exception as exc:
-            logger.fail_task(f"Config contains invalid values: {exc}")
-            return 3
-        return 0
+    # def check_params(self, payload: Dict[str, Any]) -> int:
+    #     logger.start_task("Checking parameters…")
+    #     try:
+    #         if not payload["config"].init():
+    #             logger.fail_task("Config file is not valid")
+    #             logger.warning(
+    #                 "\n".join(
+    #                     [
+    #                         f"- [{key}] {error}"
+    #                         for key, error in payload["config"].errors
+    #                     ]
+    #                 )
+    #             )
+    #             return 3
+    #         else:
+    #             logger.succeed_task()
+    #     except Exception as exc:
+    #         logger.fail_task(f"Config contains invalid values: {exc}")
+    #         raise exc
+    #         return 3
+    #     return 0
 
     def check_different_output(self, payload: Dict[str, Any]) -> int:
         logger.start_task("Making sure base and output are different…")
@@ -217,7 +219,17 @@ class CheckURLs(Step):
         for file in [payload["config"].base] + payload["config"].all_files:
             if file.is_plain:
                 continue
+
             logger.start_task(f"Checking {file.geturl()}…")
+
+            if payload["cache"].in_cache(file, True):
+                logger.succeed_task(
+                    f"{format_size(payload['cache'][file].size)} (cached)"
+                )
+                continue
+
+            # TODO: account for user-defined size
+            # TODO: fail on missing size
             size = file.fetch_size()
             if size >= 0:
                 logger.succeed_task(format_size(size))
@@ -226,14 +238,41 @@ class CheckURLs(Step):
             else:
                 logger.fail_task()
                 all_valid &= False
+            payload["cache"].add_candidate(file)
 
-        for image in payload["config"].oci_images:
+        for image in payload["config"].all_images:
             logger.start_task(f"Checking OCI Image {image}…")
-            if not image_exists(image):
+
+            if payload["cache"].in_cache(image, True):
+                logger.succeed_task(
+                    f"{format_size(payload['cache'][image].size)} (cached)"
+                )
+                continue
+
+            if not image_exists(image.oci):
                 logger.fail_task()
                 all_valid &= False
             else:
                 logger.succeed_task()
+            payload["cache"].add_candidate(image)
+
+        if payload["cache"].candidates:
+            logger.start_task("Computing cache updates…")
+            nb_to_evict = len(payload["cache"])
+            payload["cache"].apply_candidates()
+            nb_to_evict -= len(payload["cache"])
+
+            msgs = []
+            if nb_to_evict:
+                msgs.append(f"{nb_to_evict} removed")
+
+            if payload["cache"].candidates:
+                nb_candidates = len(payload["cache"].candidates)
+                size_candidates = sum(
+                    [entry.size for entry in payload["cache"].candidates.values()]
+                )
+                msgs.append(f"{nb_candidates} to add ({format_size(size_candidates)})")
+            logger.end_task(message=". ".join(msgs))
 
         return 0 if all_valid else 4
 
@@ -242,7 +281,7 @@ class WritingOffspotConfig(Step):
     name = "Writing Offspot Config…"
 
     def run(self, payload: Dict[str, Any]) -> int:
-        if not payload["config"].offspot_config:
+        if not payload["config"].offspot:
             logger.add_task("No Offspot config passed")
             return 0
 
@@ -250,7 +289,7 @@ class WritingOffspotConfig(Step):
         logger.start_task(f"Saving Offspot config to {offspot_fpath}…")
         try:
             offspot_fpath.write_text(
-                yaml_dump(payload["config"].offspot_config, Dumper=Dumper)
+                yaml_dump(payload["config"].offspot, Dumper=Dumper)
             )
         except Exception as exc:
             logger.fail_task(str(exc))

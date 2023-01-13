@@ -13,6 +13,10 @@ class ImageCreator:
         atexit.register(self.halt)
 
     def run(self):
+        if not Global.options.cache_dir:
+            StepMachine.remove_step("ApplyCachePolicy")
+        if not Global.options.show_cache:
+            StepMachine.remove_step("PrintingCache")
         if Global.options.check_only:
             StepMachine.halt_after("ComputeSizes")
 

@@ -11,7 +11,8 @@ def main():
     parser = argparse.ArgumentParser(
         prog="image-creator",
         description="Create an Offspot Image from a config file",
-        epilog="See https://github.com/offspot/image-creator for config format",
+        epilog="See https://github.com/offspot/image-creator "
+        "for config and cache-policy format",
     )
 
     parser.add_argument(
@@ -20,6 +21,22 @@ def main():
         help="Directory to store temporary files in, "
         "like files that needs to be extracted. "
         f"Defaults to some place within {tempfile.gettempdir()}",
+    )
+    parser.add_argument(
+        "--cache-dir",
+        dest="CACHE_DIR",
+        help="Directory to use as a download cache. "
+        "Should a remote file be present in the cache, "
+        "it is fetched from there instead of being downloaded. "
+        "Files matching the cache policy are stored to the cache once downloaded. "
+        "Cache Policy can be configured in CACHE_DIR/policy.yaml",
+    )
+    parser.add_argument(
+        "--show-cache",
+        action="store_true",
+        dest="show_cache",
+        help="Print a summary of the Cache's content. "
+        "Use with --check to query a Cache's status.",
     )
     parser.add_argument(
         "-C",
