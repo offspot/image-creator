@@ -105,13 +105,7 @@ class Logger:
     @property
     def indent_level(self):
         """standard indentation level based on current ~position"""
-        match self.currently:
-            case "step":
-                return 3
-            case "task":
-                return 6
-            case _:
-                return 0
+        return {"step": 3, "task": 6}.get(self.currently, 0)
 
     def mark_as(self, what: str):
         """set new ~position of the logger: step or task"""
