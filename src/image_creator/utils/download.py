@@ -130,6 +130,13 @@ def get_digest(url: str, etag_only: Optional[bool] = False) -> str:
 
     resp = session.get(url, stream=True)
     resp.raise_for_status()
+
+    # if there has been redirects, loop through each in order,
+    # looking for MirrorBrain's Digest header and use it
+    for hist_resp in resp.history:
+        if hist_resp.headers.get("Digest"):
+            return hist_resp.headers.get("Digest")
+
     etag = resp.headers.get("ETag")
     if etag:
         etag = re.sub(r'^"(.+)"$', r"\1", etag)
