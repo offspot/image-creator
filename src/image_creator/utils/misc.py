@@ -64,6 +64,12 @@ def get_size_of(fpath: pathlib.Path) -> int:
     return get_dirsize(fpath)
 
 
+def get_freespace(fpath: pathlib.Path) -> int:
+    """free-space in bytes for the volume at fpath"""
+    stat = os.statvfs(fpath)
+    return stat.f_bavail * stat.f_frsize
+
+
 def rmtree(fpath: pathlib.Path):
     """recursively remove an entire folder (rm -rf)"""
     shutil.rmtree(fpath, ignore_errors=True)

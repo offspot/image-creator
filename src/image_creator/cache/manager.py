@@ -312,6 +312,9 @@ class CacheManager(dict):
 
     __contains__ = in_cache
 
+    def has_candidate(self, item: Item) -> bool:
+        return path_for_item(item) in self.candidates.keys()
+
     def __len__(self):
         if not self.discovered:
             self.walk()

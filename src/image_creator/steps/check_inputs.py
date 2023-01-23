@@ -105,33 +105,11 @@ class CheckInputs(Step):
             logger.succeed_task()
         return 0
 
-    # def check_params(self, payload: Dict[str, Any]) -> int:
-    #     logger.start_task("Checking parameters…")
-    #     try:
-    #         if not payload["config"].init():
-    #             logger.fail_task("Config file is not valid")
-    #             logger.warning(
-    #                 "\n".join(
-    #                     [
-    #                         f"- [{key}] {error}"
-    #                         for key, error in payload["config"].errors
-    #                     ]
-    #                 )
-    #             )
-    #             return 3
-    #         else:
-    #             logger.succeed_task()
-    #     except Exception as exc:
-    #         logger.fail_task(f"Config contains invalid values: {exc}")
-    #         raise exc
-    #         return 3
-    #     return 0
-
     def check_different_output(self, payload: Dict[str, Any]) -> int:
         logger.start_task("Making sure base and output are different…")
         if (
-            payload["config"].base.is_local
-            and payload["config"].base.getpath() == payload["options"].output_path
+            payload["config"].base_file.is_local
+            and payload["config"].base_file.getpath() == payload["options"].output_path
         ):
             logger.fail_task("base and output image are the same")
             return 3
@@ -216,7 +194,7 @@ class CheckURLs(Step):
     def run(self, payload: Dict[str, Any]) -> int:
         all_valid = True
 
-        for file in [payload["config"].base] + payload["config"].all_files:
+        for file in [payload["config"].base_file] + payload["config"].all_files:
             if file.is_plain:
                 continue
 

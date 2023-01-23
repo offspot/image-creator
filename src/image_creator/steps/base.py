@@ -18,10 +18,10 @@ class DownloadImage(Step):
 
     def run(self, payload: Dict[str, Any]) -> int:
         # we need to extract this into the actual target
-        if payload["config"].base.getpath().suffix == ".xz":
-            return self.run_compressed(payload["config"].base, payload)
+        if payload["config"].base_file.getpath().suffix == ".xz":
+            return self.run_compressed(payload["config"].base_file, payload)
 
-        return self.run_uncompressed(payload["config"].base, payload)
+        return self.run_uncompressed(payload["config"].base_file, payload)
 
     def run_uncompressed(self, base_file: File, payload: Dict[str, Any]) -> int:
         target = payload["options"].output_path

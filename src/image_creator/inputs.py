@@ -28,6 +28,17 @@ def get_base_from(url: str) -> File:
 
 @enforce_types
 @dataclass(kw_only=True)
+class BaseConfig:
+    source: Union[str, File]
+    rootfs_size: Union[str, int]
+
+    def __post_init__(self):
+        if self.rootfs_size and isinstance(self.rootfs_size, str):
+            self.rootfs_size = parse_size(self.rootfs_size)
+
+
+@enforce_types
+@dataclass(kw_only=True)
 class OCIImageConfig:
     ident: str
     url: Optional[str] = None
@@ -42,6 +53,7 @@ class FileConfig:
     url: Optional[str] = None
     content: Optional[str] = None
     via: Optional[str] = "direct"
+    size: Optional[Union[str, int]] = -1
 
     def __post_init__(self, *args, **kwargs):
         if self.via not in WAYS:
@@ -53,6 +65,8 @@ class FileConfig:
                 f"Either {type(self).__name__}.url "
                 f"or {type(self).__name__}.content must be set"
             )
+        if self.size and isinstance(self.size, str):
+            self.size = parse_size(self.size)
 
 
 @enforce_types
@@ -84,7 +98,8 @@ class OutputConfig:
 @enforce_types
 @dataclass(kw_only=True)
 class MainConfig:
-    base: Union[str, File]
+    base: Union[Dict, BaseConfig]
+    base_file: Optional[File] = None
     output: Optional[Union[Dict, OutputConfig]] = field(default_factory=OutputConfig)
     oci_images: List[OCIImageConfig]
     files: List[FileConfig]
@@ -95,8 +110,11 @@ class MainConfig:
     all_images: Optional[List[OCIImage]] = field(default_factory=list)
 
     def __post_init__(self, *args, **kwargs):
-        if isinstance(self.base, str):
-            self.base = get_base_from(self.base)
+        if isinstance(self.base, dict):
+            self.base = BaseConfig(**self.base)
+
+        if isinstance(self.base.source, str):
+            self.base_file = get_base_from(self.base.source)
 
         if isinstance(self.output, dict):
             self.output = OutputConfig(**self.output)

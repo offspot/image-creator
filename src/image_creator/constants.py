@@ -4,11 +4,11 @@ import sys
 import tempfile
 import urllib.parse
 from dataclasses import dataclass
-from typing import Union
+from typing import Optional, Union
 
 from image_creator import __version__ as vers
 from image_creator.logger import Logger
-from image_creator.utils.misc import is_http
+from image_creator.utils.misc import is_http, parse_size
 
 # where will data partition be monted on final device.
 # used as reference for destinations in config file and in the UI
@@ -47,6 +47,7 @@ class Options:
     keep_failed: bool
     overwrite: bool
     concurrency: int
+    max_size: Optional[int] = None
 
     config_url: urllib.parse.ParseResult = None
     logger: Logger = Logger()
@@ -74,6 +75,9 @@ class Options:
 
         if self.CACHE_DIR:
             self.cache_dir = pathlib.Path(self.CACHE_DIR).expanduser().resolve()
+
+        if isinstance(self.max_size, str):
+            self.max_size = parse_size(self.max_size)
 
     @property
     def version(self):
