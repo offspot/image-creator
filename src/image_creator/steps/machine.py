@@ -2,6 +2,7 @@ from image_creator.constants import logger
 from image_creator.logger import Status
 from image_creator.steps import GivingFeedback, VirtualInitStep
 from image_creator.steps.base import DownloadImage
+from image_creator.steps.cache import ApplyCachePolicy, CheckCache, PrintingCache
 from image_creator.steps.check_inputs import (
     CheckInputs,
     CheckRequirements,
@@ -28,6 +29,9 @@ class StepMachine:
         VirtualInitStep,
         CheckRequirements,
         CheckInputs,
+        CheckCache,
+        PrintingCache,
+        ApplyCachePolicy,
         CheckURLs,
         ComputeSizes,
         # check-only stops here
@@ -55,6 +59,12 @@ class StepMachine:
         """reduce StepMachine to end with that step"""
         index = [stepcls.__name__ for stepcls in cls.steps].index(step)
         cls.steps = cls.steps[: index + 1]
+
+    @classmethod
+    def remove_step(cls, step: str):
+        """reduce StepMachine to end with that step"""
+        stepcls = [stepcls for stepcls in cls.steps if stepcls.__name__ == step][0]
+        cls.steps.remove(stepcls)
 
     def _get_step(self, index: int):
         return self.steps[index].__call__()

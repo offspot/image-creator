@@ -1,8 +1,6 @@
-import pathlib
 import re
-import shutil
-import urllib.parse
-from typing import Any, Dict, List, Optional, Tuple, Union
+from dataclasses import asdict, dataclass, field
+from typing import Dict, List, Optional, Union
 
 try:
     from yaml import CLoader as Loader
@@ -12,164 +10,133 @@ except ImportError:
     from yaml import Loader, load as yaml_load
 
 from image_creator.constants import DATA_PART_PATH
-from image_creator.utils.download import get_online_rsc_size
-from image_creator.utils.misc import get_filesize
-from image_creator.utils.oci_images import Image as OCIImage
+from image_creator.utils.file import File
+from image_creator.utils.misc import enforce_types, is_list_of_dict, parse_size
+from image_creator.utils.oci_images import OCIImage
+
+WAYS = ("direct", "bztar", "gztar", "tar", "xztar", "zip")
 
 
-def has_val(data, key: str) -> bool:
-    value = data.get(key, "")
-    if not value:
-        return False
-    if not isinstance(value, str):
-        return False
-    return bool(value)
+def get_base_from(url: str) -> File:
+    """Infer url from flexible `base` and return a File"""
+    match = re.match(r"^(?P<version>\d\.\d\.\d)(?P<extra>[a-z0-9\-\.\_]*)", url)
+    if match:
+        version = "".join(match.groups())
+        url = f"https://drive.offspot.it/base/base-image-{version}.img.xz"
+    return File({"url": url, "to": DATA_PART_PATH / "-"})
 
 
-class File:
-    """In-Config reference to a file to write to the data partition
+@enforce_types
+@dataclass(kw_only=True)
+class OCIImageConfig:
+    ident: str
+    url: Optional[str] = None
+    filesize: int
+    fullsize: int
 
-    Created from files entries in config:
-    - to: str
-        mandatory destination to save file into. Must be inside /data
-    - size: optional[int]
-        size of (expanded) content. If specified, must be >= source file
-    - via: optional[str]
-        method to process source file (not for content). Values in File.unpack_formats
-    - url: optional[str]
-        URL to download file from
-    - content: optional[str]
-        plain text content to write to destination
 
-    one of content or url must be supplied. content has priority"""
+@enforce_types
+@dataclass(kw_only=True)
+class FileConfig:
+    to: str
+    url: Optional[str] = None
+    content: Optional[str] = None
+    via: Optional[str] = "direct"
 
-    unpack_formats = [f[0] for f in shutil.get_unpack_formats()]
+    def __post_init__(self, *args, **kwargs):
+        if self.via not in WAYS:
+            raise ValueError(
+                f"Incorrect value `{self.via}` for {type(self).__name__}.via"
+            )
+        if not self.url and not self.content:
+            raise ValueError(
+                f"Either {type(self).__name__}.url "
+                f"or {type(self).__name__}.content must be set"
+            )
 
-    def __init__(self, payload: Dict[str, Union[str, int]]):
-        self.url = None
-        self.content = payload.get("content")
 
-        if not self.content:
-            try:
-                self.url = urllib.parse.urlparse(payload.get("url"))
-            except Exception:
-                raise ValueError(f"URL “{payload.get('url')}” is incorrect")
+@enforce_types
+@dataclass(kw_only=True)
+class OutputConfig:
+    size: Optional[Union[int, str]] = None
+    shrink: Optional[bool] = False
+    compress: Optional[bool] = False
 
-        self.to = pathlib.Path(payload["to"]).resolve()
-        if not self.to.is_relative_to(DATA_PART_PATH):
-            raise ValueError(f"{self.to} not a descendent of {DATA_PART_PATH}")
+    def __post_init__(self):
+        self.parse_size()
 
-        self.via = payload.get("via", "direct")
-        if self.via not in ("direct", "unzip", "untar"):
-            raise NotImplementedError(f"Unsupported handler `{self.via}`")
+    def parse_size(self):
+        if isinstance(self.size, int):
+            return
 
-        # initialized has unknown
-        self.size = payload.get("size", -1)
-
-    def fetch_size(self, force: Optional[bool] = False) -> int:
-        """retrieve size of source, making sure it's reachable"""
-        if not force and self.size >= 0:
-            return self.size
-        self.size = (
-            get_filesize(self.getpath())
-            if self.is_local
-            else get_online_rsc_size(self.geturl())
-        )
-        return self.size
-
-    def geturl(self) -> str:
-        """URL as string"""
+        if self.size == "auto":
+            self.size = None
+            return
         try:
-            return self.url.geturl()
-        except Exception:
-            return None
-
-    def getpath(self) -> pathlib.Path:
-        """URL as a local path"""
-        return pathlib.Path(self.url.path).expanduser().resolve()
-
-    @property
-    def is_direct(self):
-        return self.via == "direct"
-
-    @property
-    def is_plain(self) -> bool:
-        """whether a plain text content to be written"""
-        return self.content is not None
-
-    @property
-    def is_local(self) -> bool:
-        """whether referencing a local file"""
-        return not self.is_plain and self.url and self.url.scheme == "file"
-
-    @property
-    def is_remote(self) -> bool:
-        """whether referencing a remote file"""
-        return self.content is None and self.url and self.url.scheme != "file"
-
-    def mounted_to(self, mount_point: pathlib.Path):
-        """destination (to) path inside mount-point"""
-        return mount_point.joinpath(self.to.relative_to(DATA_PART_PATH))
-
-    def __repr__(self) -> str:
-        msg = f"File(to={self.to}, via={self.via}"
-        if self.url:
-            msg += f", url={self.geturl()}"
-        if self.content:
-            msg += f", content={self.content.splitlines()[0][:10]}"
-        msg += f", size={self.size})"
-        return msg
-
-    def __str__(self) -> str:
-        return repr(self)
+            self.size = parse_size(self.size)
+        except Exception as exc:
+            raise ValueError(
+                f"Unable to parse `{self.size}` into size "
+                f"for {type(self).__name__}.size ({exc})"
+            )
 
 
-class Config(dict):
-    """Parsed Image YAML Configuration"""
+@enforce_types
+@dataclass(kw_only=True)
+class MainConfig:
+    base: Union[str, File]
+    output: Optional[Union[Dict, OutputConfig]] = field(default_factory=OutputConfig)
+    oci_images: List[OCIImageConfig]
+    files: List[FileConfig]
+    write_config: Optional[bool] = False
+    offspot: Optional[Dict] = field(default_factory=dict)
+
+    all_files: Optional[List[File]] = field(default_factory=list)
+    all_images: Optional[List[OCIImage]] = field(default_factory=list)
+
+    def __post_init__(self, *args, **kwargs):
+        if isinstance(self.base, str):
+            self.base = get_base_from(self.base)
+
+        if isinstance(self.output, dict):
+            self.output = OutputConfig(**self.output)
+
+        all_tos = [fileconf.to for fileconf in self.files]
+        dup_tos = [to for to in all_tos if all_tos.count(to) > 1]
+        if len(dup_tos):
+            raise ValueError(
+                f"{type(self).__name__}.files: duplicate to target(s): "
+                f"{','.join(dup_tos)}"
+            )
+
+        for conf in self.files:
+            self.all_files.append(File(asdict(conf)))
+        for conf in self.oci_images:
+            self.all_images.append(OCIImage(asdict(conf)))
 
     @classmethod
     def read_from(cls, text: str):
-        """Instanciate from yaml text"""
-        return cls(**yaml_load(text, Loader=Loader))
+        """Config from a YAML string config"""
 
-    def init(self):
-        """Prepare Config from yaml-parsed dict"""
-        self.errors: List[Tuple[str, str]] = []
+        # parse YAML (Dict) will be our input to MainConfig
+        payload = yaml_load(text, Loader=Loader)
 
-        self.base: File = self._get_base()
-        self.all_files: List[File] = [
-            File(payload) for payload in self.get("files", [])
-        ]
-        self.oci_images: List[OCIImage] = [
-            OCIImage.parse(str(name)) for name in self.get("oci_images", [])
-        ]
-        return self.validate()
+        # build SubPolicies first (args of the main Policy)
+        for name, sub_config_cls in {
+            "oci_images": OCIImageConfig,
+            "files": FileConfig,
+        }.items():
+            # remove he key from payload ; we'll replace it with actual SubConfig
+            subload = payload.pop(name, [])
 
-    @property
-    def is_valid(self) -> bool:
-        return not self.errors
+            if not is_list_of_dict(subload):
+                raise ValueError(f"Unexpected type for Config.{name}: {type(subload)}")
 
-    def _get_base(self) -> File:
-        """Infer url from flexible `base` and return a File"""
-        url = self.get("base")
-        match = re.match(r"^(?P<version>\d\.\d\.\d)(?P<extra>[a-z0-9\-\.\_]*)", url)
-        if match:
-            version = "".join(match.groups())
-            url = f"https://drive.offspot.it/base/base-image-{version}.img.xz"
-        return File({"url": url, "to": DATA_PART_PATH / "-"})
+            # create SubConfig (will fail in case of errors)
+            payload[name] = [sub_config_cls(**item) for item in subload]
 
-    def dig(self, path, default=None) -> Any:
-        """get a value using it's dotted tree path"""
-        data = self
-        parts = path.split(".")
-        for index in range(0, len(parts) - 1):
-            data = data.get(parts[index], {})
-        return data.get(parts[-1], default)
-
-    @property
-    def offspot_config(self) -> Dict:
-        """parsed `offspot` subtree representing runtime-config file"""
-        return self.get("offspot")
+        # ready to create the actual main Policy
+        return cls(**payload)
 
     @property
     def remote_files(self) -> List[File]:
@@ -178,33 +145,3 @@ class Config(dict):
     @property
     def non_remote_files(self) -> List[File]:
         return [file for file in self.all_files if file.is_plain or file.is_local]
-
-    def validate(self) -> bool:
-        """whether Config can be run or not
-
-        Feedback for user in self.errors"""
-
-        # check for required props (only base ATM)
-        for key in ("base",):
-            if not self.get(key):
-                self.errors.append(key, f"missing `{key}`")
-
-        # check that files are OK
-        files = self.get("files", [])
-        if not isinstance(files, list):
-            self.errors.append(("files", "not a list"))
-
-        for file in files:
-            if not isinstance(file, dict):
-                self.errors.append("files", "not a dict")
-            if not has_val(file, "to"):
-                self.errors.append("files.to", "missing or invalid")
-            if not has_val(file, "url") and not has_val(file, "content"):
-                self.errors.append("files", "`url` or `content` must be set")
-
-        # make sure no two-files have the same destination
-        all_tos = [file.get("to") for file in files]
-        if len(all_tos) != len(set(all_tos)):
-            self.errors.append(("files", "using same `to:` target several times"))
-
-        return self.is_valid

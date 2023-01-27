@@ -2,13 +2,13 @@ import enum
 import logging
 import pathlib
 import traceback
-from typing import Optional
+from typing import Any, Optional, Sequence, Union
 
 import cli_ui as ui
 
 Status = enum.Enum("Status", ["OK", "NOK", "NEUTRAL"])
 Colors = {Status.NEUTRAL: ui.reset, Status.OK: ui.green, Status.NOK: ui.red}
-ui.warn = ui.UnicodeSequence(ui.brown, "⚠️", "/!\\")
+ui.warn = ui.UnicodeSequence(ui.brown, "⚠️", "[!]")
 
 
 class Logger:
@@ -41,6 +41,10 @@ class Logger:
         self.setLevel(level)
 
         self.currently = None
+
+    @property
+    def ui(self):
+        return ui
 
     def setLevel(self, level: int):
         """reset logger's verbose config based on level"""
@@ -90,6 +94,9 @@ class Logger:
     def fatal(self, text: str):
         self.critical(text)
 
+    def table(self, data: Any, headers: Union[str, Sequence[str]]):
+        ui.info_table(data=data, headers=headers)
+
     @property
     def with_progress(self) -> bool:
         """wether configured to write progress to an external machine-readable file"""
@@ -98,13 +105,7 @@ class Logger:
     @property
     def indent_level(self):
         """standard indentation level based on current ~position"""
-        match self.currently:
-            case "step":
-                return 3
-            case "task":
-                return 6
-            case _:
-                return 0
+        return {"step": 3, "task": 6}.get(self.currently, 0)
 
     def mark_as(self, what: str):
         """set new ~position of the logger: step or task"""

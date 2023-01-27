@@ -2,7 +2,7 @@ from typing import Any, Dict
 
 from image_creator.constants import logger
 from image_creator.steps import Step
-from image_creator.utils.misc import format_size, parse_size
+from image_creator.utils.misc import format_size
 
 
 class ComputeSizes(Step):
@@ -10,9 +10,11 @@ class ComputeSizes(Step):
 
     def run(self, payload: Dict[str, Any]) -> int:
 
-        payload["output_size"] = parse_size(payload["config"].dig("output.size"))
+        payload["output_size"] = payload["config"].output.size
         logger.add_task("Image size:", f"{format_size(payload['output_size'])}")
 
+        for image in payload["config"].all_images:
+            ...
         # TODO: we should do more
         # - compute size of all content
         # - display cumulative size of content

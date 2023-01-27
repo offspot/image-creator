@@ -1,8 +1,11 @@
 import io
 import pathlib
+import re
 from typing import Callable, Dict, Optional, Union
 
 import requests
+
+from image_creator.utils.misc import is_http
 
 session = requests.Session()
 # basic urllib retry mechanism.
@@ -107,3 +110,43 @@ def download_file(
     else:
         fp.seek(0)
     return total_downloaded, resp.headers
+
+
+def get_digest(url: str, etag_only: Optional[bool] = False) -> str:
+    """Digest for an arbitrary URI -- or empty string
+
+    Returns:
+    - ETag (value) if found
+    - A commbination of of Content-Length and Last-Modified headers if both are present
+    - "" if etag not found and etag_only set
+    - "" if etag not found and either Content-Length or Last-Modified if not found
+
+    Should be enough to query whether an URL has been updated or not. If server
+    doesn't specify those headers, resource should be considered updated"""
+
+    # work only on http(s) URLs
+    if not is_http(url):
+        return ""
+
+    resp = session.get(url, stream=True)
+    resp.raise_for_status()
+
+    # if there has been redirects, loop through each in order,
+    # looking for MirrorBrain's Digest header and use it
+    for hist_resp in resp.history:
+        if hist_resp.headers.get("Digest"):
+            return hist_resp.headers.get("Digest")
+
+    etag = resp.headers.get("ETag")
+    if etag:
+        etag = re.sub(r'^"(.+)"$', r"\1", etag)
+
+    if etag or etag_only:
+        return etag
+
+    length = resp.headers.get("Content-Length")
+    modified = resp.headers.get("Last-Modified")
+    if not length or not modified:
+        return ""
+
+    return f"{length}|{modified}"

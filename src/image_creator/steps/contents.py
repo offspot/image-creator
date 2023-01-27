@@ -8,11 +8,13 @@ from typing import Any, Callable, Dict, Optional
 
 import progressbar
 
+from image_creator.cache.manager import CacheManager
 from image_creator.constants import logger
 from image_creator.inputs import File
 from image_creator.steps import Step
 from image_creator.utils.download import download_file
 from image_creator.utils.misc import (
+    copy_file,
     ensure_dir,
     expand_file,
     format_size,
@@ -89,6 +91,7 @@ class MultiDownloadProgressBar:
 
 def download_file_worker(
     file: File,
+    cache: CacheManager,
     mount_point: pathlib.Path,
     temp_dir: pathlib.Path,
     on_data: Optional[Callable] = None,
@@ -100,26 +103,39 @@ def download_file_worker(
     ensure_dir(dest_path.parent)
 
     if file.is_direct:
-        download_file(
-            file.geturl(),
-            dest_path,
-            block_size=block_size,
-            on_data=on_data,
-        )
+        if file in cache:
+            copy_file(cache[file].fpath, dest_path)
+            cache[file] += 1
+        else:
+            download_file(
+                file.geturl(),
+                dest_path,
+                block_size=block_size,
+                on_data=on_data,
+            )
+            if cache.should_cache(file):
+                cache.introduce(file, dest_path)
+
     else:
         temp_path = pathlib.Path(
             tempfile.NamedTemporaryFile(dir=temp_dir, suffix=dest_path.name).name
         )
-        try:
-            download_file(
-                file.geturl(),
-                temp_path,
-                block_size=block_size,
-                on_data=on_data,
-            )
-        except Exception as exc:
-            temp_path.unlink(missing_ok=True)
-            raise exc
+        if file in cache:
+            copy_file(cache[file].fpath, dest_path)
+            cache[file] += 1
+        else:
+            try:
+                download_file(
+                    file.geturl(),
+                    temp_path,
+                    block_size=block_size,
+                    on_data=on_data,
+                )
+            except Exception as exc:
+                temp_path.unlink(missing_ok=True)
+                raise exc
+            if cache.should_cache(file):
+                cache.introduce(file, temp_path)
         try:
             expand_file(temp_path, dest_path, file.via)
         except Exception as exc:
@@ -134,6 +150,7 @@ class FilesMultiDownloader:
     def __init__(
         self,
         files,
+        cache: CacheManager,
         mount_point: pathlib.Path,
         temp_dir: Optional[pathlib.Path] = None,
         concurrency: Optional[int] = None,
@@ -141,6 +158,7 @@ class FilesMultiDownloader:
         on_data: Optional[Callable] = None,
     ):
         self.files = files
+        self.cache = cache
         self.mount_point = mount_point
         self.temp_dir = temp_dir
 
@@ -189,6 +207,7 @@ class FilesMultiDownloader:
             self.executor.submit(
                 download_file_worker,
                 file,
+                self.cache,
                 self.mount_point,
                 self.temp_dir,
                 self.on_data,
@@ -306,17 +325,20 @@ class DownloadingContent(Step):
                 try:
                     download_file_worker(
                         file,
+                        payload["cache"],
                         mount_point,
                         payload["options"].build_dir,
                         on_data=on_data,
                     )
                 except Exception as exc:
+                    logger.message()
                     logger.complete_download(
                         dest_path.name, failed=True, extra=str(exc)
                     )
                     return 1
                 else:
                     dl_progress.nb_completed += 1
+                    logger.message()
                     logger.complete_download(
                         dest_path.name,
                         format_size(get_size_of(dest_path)),
@@ -332,14 +354,17 @@ class DownloadingContent(Step):
                 logger.debug(f"Failed to download {file.url} into {dest_path}: {exc}")
                 raise exc
 
+            cache_suffix = " (cached)" if file in payload["cache"] else ""
+            logger.message()
             logger.complete_download(
                 dest_path.name,
-                format_size(get_size_of(dest_path)),
+                format_size(get_size_of(dest_path)) + cache_suffix,
                 extra=f"({str(dl_progress)})",
             )
 
         downloader = FilesMultiDownloader(
             files=payload["config"].remote_files,
+            cache=payload["cache"],
             mount_point=mount_point,
             temp_dir=payload["options"].build_dir.joinpath("dl_remotes"),
             concurrency=payload["options"].concurrency,

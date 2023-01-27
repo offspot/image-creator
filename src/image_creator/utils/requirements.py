@@ -13,7 +13,6 @@ kernel features:
         - same loop feature applies to host's kernel
         - container must be run with --privileged
     - `ext4` filesystem (most likely enabled in-kernel)
-    check whether you need t
 
 tools:
     - losetup (mount)
