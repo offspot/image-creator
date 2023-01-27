@@ -12,12 +12,22 @@ def get_margin_for(content_size: int) -> int:
     return int(0.1 * content_size)  # static 10% for now
 
 
+def get_target_path(output_path: pathlib.Path) -> pathlib.Path:
+    """usable output path given the requested one might not exist yet"""
+
+    # at this stage, the target image file probably doesnt exists (but can)
+    # and its parent folder might not exist as well
+    if not output_path.exists():
+        for parent in output_path.parents:
+            if parent.exists():
+                return parent
+    return output_path
+
+
 class ComputeSizes(Step):
     name = "Compute sizes…"
 
     def run(self, payload: Dict[str, Any]) -> int:
-
-        payload["output_size"] = payload["config"].output.size
 
         tar_images_size = sum(
             [image.filesize for image in payload["config"].all_images]
@@ -66,6 +76,8 @@ class ComputeSizes(Step):
                 return 1
             logger.succeed_task()
 
+        payload["output_size"] = image_size
+
         return self.check_physical_space(payload, image_size)
 
     def get_needs(self, payload: Dict[str, Any], image_size: int) -> Dict[str, int]:
@@ -98,21 +110,10 @@ class ComputeSizes(Step):
             )
         return needs
 
-    def get_target_path(output_path: pathlib.Path) -> pathlib.Path:
-        """usable output path given the requested one might not exist yet"""
-
-        # at this stage, the target image file probably doesnt exists (but can)
-        # and its parent folder might not exist as well
-        if not output_path.exists():
-            for parent in output_path.parents:
-                if parent.exists():
-                    return parent
-        return output_path
-
     def check_physical_space(self, payload: Dict[str, Any], image_size: int) -> int:
         logger.start_task("Checking free-space availability…")
-        target_path = self.get_target_path(payload["options"].output_path)
-        needs = self.get_needs(payload)
+        target_path = get_target_path(payload["options"].output_path)
+        needs = self.get_needs(payload, image_size)
 
         # mapping of volumes/mount point with their cumulative needs
         volumes_map = {}
