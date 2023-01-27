@@ -13,7 +13,6 @@ from functools import wraps
 from typing import Any, Dict, List, Optional, _SpecialForm, get_origin
 
 import humanfriendly
-import xattr
 
 
 def format_size(size: int) -> str:
@@ -62,6 +61,12 @@ def get_size_of(fpath: pathlib.Path) -> int:
     if fpath.is_file():
         return get_filesize(fpath)
     return get_dirsize(fpath)
+
+
+def get_freespace(fpath: pathlib.Path) -> int:
+    """free-space in bytes for the volume at fpath"""
+    stat = os.statvfs(fpath)
+    return stat.f_bavail * stat.f_frsize
 
 
 def rmtree(fpath: pathlib.Path):
@@ -116,11 +121,14 @@ def expand_file(src: pathlib.Path, method: str, dest: pathlib.Path):
     return shutil.unpack_archive(src, dest, method)
 
 
-class SimpleAttrs(xattr.xattr):
-    """Simple xattr wrapper to save specifying user. prefix"""
+class SimpleAttrs:
+    """Dict-like xattr wrapper to save specifying user. prefix"""
 
     def __init__(self, path: pathlib.Path):
-        super().__init__(str(path))
+        self.path = path
+
+    def __repr__(self):
+        return f"{type(self).__name__}(path={self.path})"
 
     @classmethod
     def usered(cls, name: str) -> str:
@@ -131,13 +139,86 @@ class SimpleAttrs(xattr.xattr):
         return re.sub(r"^user.", "", name)
 
     def get(self, name: str) -> str:
-        return super().get(self.usered(name)).decode("UTF-8")
+        return os.getxattr(self.path, self.usered(name)).decode("UTF-8")
 
     def set(self, name: str, value: str):
-        return super().set(self.usered(name), value.encode("UTF-8"))
+        os.setxattr(self.path, self.usered(name), value.encode("UTF-8"))
+
+    def remove(self, name: str):
+        os.removexattr(self.path, self.usered(name))
 
     def list(self) -> List[str]:
-        return [self.unusered(name) for name in super().list()]
+        return [self.unusered(name) for name in os.listxattr(self.path)]
+
+    def __len__(self) -> int:
+        return len(self.list())
+
+    def __delitem__(self, item: str):
+        try:
+            self.remove(item)
+        except IOError:
+            raise KeyError(item)
+
+    def __setitem__(self, item: str, value: str):
+        self.set(item, value)
+
+    def __getitem__(self, item: str) -> str:
+        try:
+            return self.get(item)
+        except IOError:
+            raise KeyError(item)
+
+    def iterkeys(self):
+        return iter(self.list())
+
+    __iter__ = iterkeys
+
+    def has_key(self, item: str) -> bool:
+        try:
+            self.get(item)
+        except IOError:
+            return False
+        else:
+            return True
+
+    __contains__ = has_key
+
+    def clear(self):
+        for k in self.keys():
+            del self[k]
+
+    def update(self, seq):
+        if not hasattr(seq, "items"):
+            seq = dict(seq)
+        for k, v in seq.items():
+            self[k] = v
+
+    def copy(self):
+        return dict(self.iteritems())
+
+    def setdefault(self, k, d=""):
+        try:
+            d = self.get(k)
+        except IOError:
+            self[k] = d
+        return d
+
+    def keys(self):
+        return self.list()
+
+    def itervalues(self):
+        for k, v in self.iteritems():
+            yield v
+
+    def values(self):
+        return list(self.itervalues())
+
+    def iteritems(self):
+        for k in self.list():
+            yield k, self.get(k)
+
+    def items(self):
+        return list(self.iteritems())
 
 
 def device_supports(dev_path: str, fs: str, option: str) -> bool:

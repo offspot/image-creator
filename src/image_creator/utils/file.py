@@ -49,6 +49,7 @@ class File:
 
         # initialized has unknown
         self._size = payload.get("size", -1)
+        self._fullsize = payload.get("fullsize", None)
 
     @property
     def source(self) -> str:  # Item interface
@@ -59,6 +60,10 @@ class File:
         if self._size < 0:
             return self.fetch_size()
         return self._size
+
+    @property
+    def fullsize(self):
+        return self._fullsize or self.size
 
     def fetch_size(self, force: Optional[bool] = False) -> int:
         """retrieve size of source, making sure it's reachable"""

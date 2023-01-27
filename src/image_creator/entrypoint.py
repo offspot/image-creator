@@ -63,6 +63,11 @@ def main():
         help="Don't fail on existing output image: remove instead",
     )
     parser.add_argument(
+        "--max-size",
+        dest="max_size",
+        help="Maximum image size allowed. Ex: 512GB",
+    )
+    parser.add_argument(
         "-T",
         "--concurrency",
         type=int,

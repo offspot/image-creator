@@ -49,7 +49,9 @@ Image configuration is done through a YAML file which must match the following f
 
 | Member             | Kind           | Function                                                                                                                                                           |
 |--------------------|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `base`             | `string`       | Version ([official releases](https://drive.offspot.it/base/)) or URL to a base-image file. Accepts `file://` URLs. Accepts lzma encoded images using `.xz` suffix  |
+| **`base`**         |                | Reference to the Offspot Base Image to use                                                                                                                         |
+| `base.source`      | `string`       | Version ([official releases](https://drive.offspot.it/base/)) or URL to a base-image file. Accepts `file://` URLs. Accepts lzma encoded images using `.xz` suffix  |
+| `base.root_size`   | `string`/`int` | Size of the root (system) partition in the referenced base image (used to calculate free space)                                                                    |
 | `output.size`      | `string`/`int` | Requested size of output image. Accepts `auto` for an power-of-2 sized that can fit the content (⚠️ TBI)                                                           |
 | `oci_images`       | `image[]`      | List of  OCI Image                                                                                                                                                 |
 | **`image[].id`**   | `string`       | **specific** OCI Image name. Prefer ghcr.io if possible. [Format](https://github.com/opencontainers/.github/blob/master/docs/docs/introduction/digests.md)         |
