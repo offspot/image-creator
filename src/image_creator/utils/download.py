@@ -39,7 +39,7 @@ session.mount("http", requests.adapters.HTTPAdapter(max_retries=retries))
 def get_online_rsc_size(url: str) -> int:
     """size (Content-Length) from url if specified, -1 otherwise (-2 on errors)"""
     try:
-        resp = requests.head(url, allow_redirects=True, timeout=60)
+        resp = session.head(url, allow_redirects=True, timeout=60)
         # some servers dont offer HEAD
         if resp.status_code != 200:
             resp = requests.get(
