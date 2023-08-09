@@ -63,7 +63,7 @@ Image configuration is done through a YAML file which must match the following f
 | `files[].to`       | `string`       | [required] Path to store file at. Must be a descendent of `/data`                                                                                                  |
 | `files[].content`  | `string`       | Text content of the file to write. Replaces `url` if present                                                                                                       |
 | `files[].via`      | `string`       | For `url`-based files, transformation to apply on downloaded file: `direct` (default): simple download, `bztar`, `gztar`, `tar`, `xztar`, `zip` to expand archives |
-| `files[].size`     | `string`/`int` | **Only for `untar`/`unzip`** should file be compressed. Specify expanded size. Assumes File-size (uncompressed) if not specified. ⚠️ Fails if lower than file size |
+| `files[].size`     | `string`/`int` | **Only for `*tar`/`zip`** should file be compressed. Specify expanded size. Assumes File-size (uncompressed) if not specified. ⚠️ Fails if lower than file size |
 | `write_config`     | `bool`         | Whether to write this file to `/data/conf/image.yaml`                                                                                                              |
 | `offspot`          | `dict`         | [runtime-config](https://github.com/offspot/runtime-config) configuration. Will be parsed and dumped to `/boot/offspot.yaml`                                       |
 
