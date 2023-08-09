@@ -455,7 +455,11 @@ class CacheManager(dict):
             if entry in self.entries.values():
                 self.evict(entry, f"{reason} [apply-candidates]")
             else:
-                del self.candidates[entry.fpath]
+                try:
+                    del self.candidates[entry.fpath]
+                # can be listed twice for eviction (matching several reasons)
+                except KeyError:
+                    pass
 
         self.considered = True
 
