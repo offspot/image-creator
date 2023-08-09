@@ -44,7 +44,7 @@ class File:
             raise ValueError(f"{self.to} not a descendent of {DATA_PART_PATH}")
 
         self.via = payload.get("via", "direct")
-        if self.via not in ("direct", "unzip", "untar"):
+        if self.via not in ["direct"] + list(shutil._UNPACK_FORMATS.keys()):
             raise NotImplementedError(f"Unsupported handler `{self.via}`")
 
         # initialized has unknown
