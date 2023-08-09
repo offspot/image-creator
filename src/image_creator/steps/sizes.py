@@ -92,7 +92,7 @@ class ComputeSizes(Step):
         remote_compressed_files = [
             file for file in payload["config"].remote_files if file.via != "direct"
         ]
-        needs["build_dir"] = sum([file.filesize for file in remote_compressed_files])
+        needs["build_dir"] = sum([file.size for file in remote_compressed_files])
 
         # cache needs:
         # - what will be introduced to cache
