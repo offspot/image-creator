@@ -1,17 +1,21 @@
+from __future__ import annotations
+
 import datetime
 import re
+from collections.abc import Iterable
 from dataclasses import MISSING, dataclass, field
-from typing import Iterable, List, Optional, Union
+
+from typeguard import typechecked
 
 try:
-    from yaml import CLoader as Loader
+    from yaml import CSafeLoader as SafeLoader
     from yaml import load as yaml_load
 except ImportError:
     # we don't NEED cython ext but it's faster so use it if avail.
-    from yaml import Loader, load as yaml_load
+    from yaml import SafeLoader
+    from yaml import load as yaml_load
 
-from image_creator.utils.misc import (
-    enforce_types,
+from offspot_config.utils.misc import (
     is_dict,
     is_list_of_dict,
     parse_duration,
@@ -42,9 +46,9 @@ class Policy:
 
 @dataclass(kw_only=True)
 class CommonParamsMixin(Policy):
-    max_size: Optional[Union[int, str]] = None
-    max_age: Optional[Union[int, str]] = None
-    max_num: Optional[int] = None
+    max_size: int | str | None = None
+    max_age: int | str | None = None
+    max_num: int | None = None
     eviction: str = Eviction.default()
 
     @property
@@ -52,7 +56,7 @@ class CommonParamsMixin(Policy):
         return ("max_size", "max_age", "max_num")
 
     @property
-    def max_age_dt(self) -> Optional[datetime.datetime]:
+    def max_age_dt(self) -> datetime.datetime | None:
         """datetime that is max_age in the past"""
         if not self.max_age:
             return None
@@ -112,11 +116,11 @@ class CommonParamsMixin(Policy):
         self.parse_max_age()
 
 
-@enforce_types
+@typechecked
 @dataclass
 class SubPolicyFilter(CommonParamsMixin):
     pattern: str
-    ignore: Optional[bool] = False
+    ignore: bool | None = False
 
     def match(self, value: str):
         return re.match(self.pattern, value, re.IGNORECASE)
@@ -124,8 +128,8 @@ class SubPolicyFilter(CommonParamsMixin):
 
 @dataclass()
 class SubPolicy(CommonParamsMixin):
-    enabled: Optional[bool] = True
-    filters: List[SubPolicyFilter] = field(default_factory=list)
+    enabled: bool | None = True
+    filters: list[SubPolicyFilter] = field(default_factory=list)
 
     def __post_init__(self, *args, **kwargs):
         super().__post_init__(*args, **kwargs)
@@ -147,22 +151,22 @@ class SubPolicy(CommonParamsMixin):
                     )
 
 
-@enforce_types
+@typechecked
 class OCIImagePolicy(SubPolicy):
     ...
 
 
-@enforce_types
+@typechecked
 class FilesPolicy(SubPolicy):
     ...
 
 
-@enforce_types
+@typechecked
 @dataclass
 class MainPolicy(CommonParamsMixin):
-    oci_images: Optional[OCIImagePolicy] = field(default_factory=OCIImagePolicy)
-    files: Optional[FilesPolicy] = field(default_factory=FilesPolicy)
-    enabled: Optional[bool] = True
+    oci_images: OCIImagePolicy | None = field(default_factory=OCIImagePolicy)
+    files: FilesPolicy | None = field(default_factory=FilesPolicy)
+    enabled: bool | None = True
 
     def __post_init__(self, *args, **kwargs):
         super().__post_init__(*args, **kwargs)
@@ -193,7 +197,7 @@ class MainPolicy(CommonParamsMixin):
         """Policy from a YAML string config"""
 
         # parse YAML (Dict) will be our input to Policy()
-        payload = yaml_load(text, Loader=Loader)
+        payload = yaml_load(text, Loader=SafeLoader)
 
         # Subpolicies have subclasses for human-friendlyness
         _sub_policy_map = {"oci_images": OCIImagePolicy, "files": FilesPolicy}
@@ -206,7 +210,7 @@ class MainPolicy(CommonParamsMixin):
             subload = payload.pop(name, None)
 
             # fail early if SubPolicy is not well formatted
-            if not is_dict(subload, True):
+            if not is_dict(subload, accepts_none=True):
                 raise ValueError(f"Unexpected type for Policy.{name}: {type(subload)}")
 
             # remove filters from (sub)payload ; we'll replace with actual FilterPolicy

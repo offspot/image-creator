@@ -1,29 +1,32 @@
+from __future__ import annotations
+
 import pathlib
 from typing import Any, Dict
 
-from image_creator.constants import logger
-from image_creator.inputs import File
-from image_creator.steps import Step
-from image_creator.utils.download import download_file
-from image_creator.utils.misc import (
+from offspot_config.inputs import File
+from offspot_config.utils.misc import (
     copy_file,
     extract_xz_image,
     format_size,
     get_filesize,
 )
 
+from image_creator.constants import logger
+from image_creator.steps import Step
+from image_creator.utils.download import download_file
+
 
 class DownloadImage(Step):
-    name = "Fetching base image"
+    name_ = "Fetching base image"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         # we need to extract this into the actual target
         if payload["config"].base_file.getpath().suffix == ".xz":
             return self.run_compressed(payload["config"].base_file, payload)
 
         return self.run_uncompressed(payload["config"].base_file, payload)
 
-    def run_uncompressed(self, base_file: File, payload: Dict[str, Any]) -> int:
+    def run_uncompressed(self, base_file: File, payload: dict[str, Any]) -> int:
         target = payload["options"].output_path
 
         if base_file not in payload["cache"] and not base_file.is_local:
@@ -65,7 +68,7 @@ class DownloadImage(Step):
 
         return 0
 
-    def run_compressed(self, base_file: File, payload: Dict[str, Any]) -> int:
+    def run_compressed(self, base_file: File, payload: dict[str, Any]) -> int:
         target = payload["options"].output_path
         xz_fpath = payload["options"].build_dir.joinpath(base_file.getpath().name)
         remove_xz = False
@@ -99,7 +102,7 @@ class DownloadImage(Step):
     def extract(
         self,
         base_file,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         xz_fpath: pathlib.Path,
         target: pathlib.Path,
         remove_xz: bool,

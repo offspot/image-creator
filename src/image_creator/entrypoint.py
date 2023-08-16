@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import sys
 import tempfile
@@ -95,7 +97,7 @@ def main():
             logger.exception(exc)
         logger.critical(str(exc))
         try:
-            app.halt()
+            app.halt()  # pyright: ignore [reportUnboundVariable]
         except Exception as exc:
             logger.debug(f"Errors cleaning-up: {exc}")
         sys.exit(1)

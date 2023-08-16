@@ -54,7 +54,7 @@ Image configuration is done through a YAML file which must match the following f
 | `base.root_size`   | `string`/`int` | Size of the root (system) partition in the referenced base image (used to calculate free space)                                                                    |
 | `output.size`      | `string`/`int` | Requested size of output image. Accepts `auto` for an power-of-2 sized that can fit the content (⚠️ TBI)                                                           |
 | `oci_images`       | `image[]`      | List of  OCI Image                                                                                                                                                 |
-| **`image[].id`**   | `string`       | **specific** OCI Image name. Prefer ghcr.io if possible. [Format](https://github.com/opencontainers/.github/blob/master/docs/docs/introduction/digests.md)         |
+| **`image[].ident`**| `string`       | **specific** OCI Image name. Prefer ghcr.io if possible. [Format](https://github.com/opencontainers/.github/blob/master/docs/docs/introduction/digests.md)         |
 | `image[].url`      | `string`       | Optional URL to the exported tar file of the image. Downloaded from registry if not present                                                                        |
 | `image[].filesize` | `int`          | Size in bytes of the exported tar file of the image                                                                                                                |
 | `image[].fullsize` | `int`          | Size in bytes of the extracted tar file of the image. See Get OCI Image Sizes below                                                                                |

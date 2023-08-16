@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from image_creator.constants import logger
 from image_creator.logger import Status
 from image_creator.steps import GivingFeedback, VirtualInitStep
@@ -63,7 +65,7 @@ class StepMachine:
     @classmethod
     def remove_step(cls, step: str):
         """reduce StepMachine to end with that step"""
-        stepcls = [stepcls for stepcls in cls.steps if stepcls.__name__ == step][0]
+        stepcls = next(stepcls for stepcls in cls.steps if stepcls.__name__ == step)
         cls.steps.remove(stepcls)
 
     def _get_step(self, index: int):

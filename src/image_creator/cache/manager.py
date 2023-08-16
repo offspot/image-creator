@@ -1,12 +1,12 @@
+from __future__ import annotations
+
 import datetime
 import pathlib
-from typing import Iterable, List, Optional, Tuple, Union
+from collections.abc import Iterable
 
-from image_creator.cache.policy import Eviction, MainPolicy, Policy
-from image_creator.constants import logger
-from image_creator.inputs import File
-from image_creator.utils.download import get_digest
-from image_creator.utils.misc import (
+from offspot_config.inputs import File
+from offspot_config.oci_images import OCIImage
+from offspot_config.utils.misc import (
     SimpleAttrs,
     copy_file,
     format_dt,
@@ -15,9 +15,12 @@ from image_creator.utils.misc import (
     get_filesize,
     is_http,
 )
-from image_creator.utils.oci_images import Image, OCIImage, get_image_digest
 
-Item = Union[File, OCIImage]
+from image_creator.cache.policy import Eviction, MainPolicy, Policy
+from image_creator.constants import Global, logger
+from image_creator.utils.download import get_digest
+
+Item = File | OCIImage
 
 
 def path_for_item(item: Item) -> pathlib.Path:
@@ -73,7 +76,7 @@ def file_is_entry(fpath: pathlib.Path) -> bool:
 
 def digest_for_item(item: Item) -> str:
     return (
-        get_image_digest(item.oci)
+        item.oci.get_digest(Global.platform)
         if isinstance(item, OCIImage)
         else get_digest(item.source)
     )
@@ -107,7 +110,9 @@ class CacheEntry:
     def get_remote_digest(self) -> str:
         """retrieve remote source digest"""
         if self.kind == "image":
-            return get_image_digest(Image.parse(self.source))
+            return OCIImage(self.source, filesize=-1, fullsize=-1).oci.get_digest(
+                Global.platform
+            )
         return get_digest(self.source)
 
     @property
@@ -119,8 +124,8 @@ class CacheEntry:
             return True
         try:
             remote = self.get_remote_digest()
-        except Exception:
-            logger.exception("faild to retrieve remote digest")
+        except Exception as exc:
+            logger.exception(OSError(f"failed to retrieve remote digest: {exc}"))
             return False
         return not remote or remote != self.digest
 
@@ -136,7 +141,7 @@ class CacheEntry:
 
 
 class CacheCandidate(CacheEntry):
-    def __init__(self, item: Item, added_on: Optional[datetime.datetime] = None):
+    def __init__(self, item: Item, added_on: datetime.datetime | None = None):
         self.kind = item.kind
         self.source = item.source
         self.size = item.size
@@ -146,11 +151,14 @@ class CacheCandidate(CacheEntry):
         self.added_on = self.last_used_on = added_on or datetime.datetime.utcnow()
 
 
-def get_eviction_for(  # noqa: C901
-    entries: List[CacheEntry], policy: Policy
-) -> List[Tuple[CacheEntry, str]]:
+def get_eviction_for(
+    entries: list[CacheEntry], policy: Policy
+) -> list[tuple[CacheEntry, str]]:
     """list of (entry, reason) from entries that are expired or outdated"""
-    if not policy.enabled:
+    if (
+        hasattr(policy, "enabled")
+        and not policy.enabled  # pyright: ignore[reportGeneralTypeIssues]
+    ):
         return []
 
     evictions = []
@@ -159,7 +167,7 @@ def get_eviction_for(  # noqa: C901
     total_size = 0
 
     if hasattr(policy, "filters"):
-        for filter_ in policy.filters:
+        for filter_ in policy.filters:  # pyright: ignore[reportGeneralTypeIssues]
             filter_num = 0
             filter_size = 0
 
@@ -195,7 +203,10 @@ def get_eviction_for(  # noqa: C901
 
                 if filter_.max_num and filter_num + 1 > filter_.max_num:
                     evictions.append(
-                        (entry, f"Would exceed filter max_num ({filter_.max_num})")
+                        (
+                            entry,
+                            f"Would exceed filter max_num ({filter_.max_num} -- {type(filter_.max_num)})",
+                        )
                     )
                     continue
 
@@ -296,7 +307,7 @@ class CacheManager(dict):
 
     __getitem__ = get
 
-    def in_cache(self, item: Item, check_outdacy: Optional[bool] = False) -> bool:
+    def in_cache(self, item: Item, check_outdacy: bool | None = False) -> bool:
         """whether there is a CacheEntry for this item in cache"""
         if not self.discovered:
             self.walk()
@@ -331,9 +342,9 @@ class CacheManager(dict):
 
         relpath = path_for_item(item)
         entry = self.candidates[relpath]
-        fpath = self.root.joinpath(entry.fpath)
+        entry.fpath = self.root.joinpath(entry.fpath)
 
-        metadata = dict()
+        metadata = {}
         metadata["added_on"] = entry.added_on.isoformat()
         metadata["last_used_on"] = entry.last_used_on.isoformat()
         metadata["nb_used"] = "1"
@@ -341,19 +352,19 @@ class CacheManager(dict):
         metadata["digest"] = digest_for_item(item)
 
         try:
-            copy_file(src_path, fpath)
+            copy_file(src_path, entry.fpath)
         except Exception as exc:
             logger.exception(exc)
             return False
         try:
-            attrs = SimpleAttrs(fpath)
+            attrs = SimpleAttrs(entry.fpath)
             attrs.clear()
             for attr, value in metadata.items():
                 attrs[attr] = value
         except Exception as exc:
             logger.exception(exc)
             try:
-                fpath.unlink()
+                entry.fpath.unlink()
             except Exception as exc2:
                 logger.exception(exc2)
             return False
@@ -368,6 +379,8 @@ class CacheManager(dict):
         """whether entry was successfuly evicted from cache"""
         if not self.policy.enabled:
             return False
+
+        logger.debug(f"Evicting {entry}: {reason}")
 
         try:
             entry.fpath.unlink()
@@ -402,8 +415,8 @@ class CacheManager(dict):
         return path_for_item(item) in self.candidates.keys()
 
     def get_eviction_for(
-        self, entries: List[CacheEntry]
-    ) -> List[Tuple[CacheEntry, str]]:
+        self, entries: list[CacheEntry]
+    ) -> list[tuple[CacheEntry, str]]:
         if not self.policy.enabled:
             return []
 
@@ -420,14 +433,14 @@ class CacheManager(dict):
 
         return list(set(evictions))
 
-    def dry_apply(self) -> List[Tuple[CacheEntry, str]]:
+    def dry_apply(self) -> list[tuple[CacheEntry, str]]:
         """list of (entry, reason) entries from cache that needs eviction"""
         return self.get_eviction_for(list(self.entries.values()))
 
-    def apply(self) -> List[Tuple[CacheEntry, str, bool]]:
+    def apply(self) -> list[tuple[CacheEntry, str, bool]]:
         """(entry, reason, success) list of evictions for applying policy"""
         if not self.policy.enabled:
-            return
+            return []
 
         evicted = []
         for entry, reason in self.dry_apply():
@@ -437,7 +450,7 @@ class CacheManager(dict):
 
         return evicted
 
-    def evict_outdated(self) -> List[Tuple[CacheEntry, str, bool]]:
+    def evict_outdated(self) -> list[tuple[CacheEntry, str, bool]]:
         """Check all Cache entries for remote updates"""
         evicted = []
         reason = "outdated"
@@ -463,7 +476,7 @@ class CacheManager(dict):
 
         self.considered = True
 
-    def print(self, with_evictions: Optional[bool] = False):
+    def print(self, with_evictions: bool | None = False):
         """print content of cache"""
         if not self.discovered:
             self.walk()

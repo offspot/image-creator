@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import os
 import re
 import subprocess
-from typing import List, Tuple
 
 help_text = """
 Requirements
@@ -36,21 +37,22 @@ def is_root() -> bool:
 
 def has_ext4_support() -> bool:
     """whether ext4 filesystem is enabled"""
-    with open("/proc/filesystems", "r") as fh:
+    with open("/proc/filesystems") as fh:
         for line in fh.readlines():
             if re.match(r"\s*ext4\s?$", line.strip()):
                 return True
     return False
 
 
-def has_all_binaries() -> Tuple[bool, List]:
+def has_all_binaries() -> tuple[bool, list[str]]:
     """whether all required binaries are present, with list of missing ones"""
-    missing_bins = []
+    missing_bins: list[str] = []
+    missing_bin_retcode = 127
     for binary in ("losetup", "fdisk", "resize2fs", "mount", "umount", "qemu-img"):
         try:
             if (
                 subprocess.run(["/usr/bin/env", binary], capture_output=True).returncode
-                == 127
+                == missing_bin_retcode
             ):
                 missing_bins.append(binary)
         except Exception:

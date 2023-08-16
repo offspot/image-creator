@@ -36,7 +36,7 @@ def get_dirsize(fpath: pathlib.Path) -> int:
     if not fpath.exists():
         raise FileNotFoundError(fpath)
     if fpath.is_file():
-        raise IOError(f"{fpath} is a file")
+        raise OSError(f"{fpath} is a file")
     return sum(f.stat().st_size for f in fpath.rglob("**/*") if f.is_file())
 
 
@@ -50,7 +50,7 @@ def human(size: int) -> str:
     return f"{value:.2f}{suffix}"
 
 
-def sizes_from_path(fpath: pathlib.Path) -> Tuple[int, int]:
+def sizes_from_path(fpath: pathlib.Path) -> tuple[int, int]:
     """filesize and fullsize from a local tar file"""
     filesize = fpath.stat().st_size
 
@@ -66,7 +66,7 @@ def sizes_from_path(fpath: pathlib.Path) -> Tuple[int, int]:
     return filesize, fullsize
 
 
-def print_from_path(fpath: pathlib.Path, name: str = None):
+def print_from_path(fpath: pathlib.Path, name: str | None = None):
     filesize, fullsize = sizes_from_path(fpath)
     fuzzy_text = "  # !fixup" if not name else ""
     name = name if name else fpath.stem

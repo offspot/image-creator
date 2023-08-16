@@ -1,17 +1,26 @@
+from __future__ import annotations
+
 import pathlib
 import shutil
-from typing import Any, Dict
+from typing import Any
 
-from image_creator.constants import logger
+from docker_export import export
+from offspot_config.oci_images import OCIImage
+from offspot_config.utils.misc import copy_file, format_size, get_filesize, rmtree
+
+from image_creator.constants import Global, logger
 from image_creator.steps import Step
-from image_creator.utils.misc import copy_file, format_size, get_filesize, rmtree
-from image_creator.utils.oci_images import OCIImage, download_image
+
+
+def download_image(image: OCIImage, dest: pathlib.Path, build_dir: pathlib.Path):
+    """download image into a tar file at dest"""
+    export(image=image, platform=Global.platform, to=dest, build_dir=build_dir)
 
 
 class DownloadingOCIImages(Step):
-    name = "Downloading OCI Images"
+    _name = "Downloading OCI Images"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         logger.start_task("Creating OCI Images placeholder…")
         mount_point = payload["image"].p3_mounted_on
         images_dir = mount_point.joinpath("images")
@@ -61,7 +70,7 @@ class DownloadingOCIImages(Step):
 
     def copy_from_cache(
         self,
-        payload: Dict[str, Any],
+        payload: dict[str, Any],
         image: OCIImage,
         mount_point: pathlib.Path,
         target: pathlib.Path,
