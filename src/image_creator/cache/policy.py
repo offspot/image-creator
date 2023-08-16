@@ -36,7 +36,7 @@ class Eviction:
         return cls.lru
 
     @classmethod
-    def all(cls) -> Iterable:
+    def get_all(cls) -> Iterable:
         return tuple(cls.__dataclass_fields__.keys())
 
 
@@ -49,7 +49,7 @@ class CommonParamsMixin(Policy):
     max_size: int | str | None = None
     max_age: int | str | None = None
     max_num: int | None = None
-    eviction: str = Eviction.default()
+    eviction: str
 
     @property
     def checkable_fields(self):
@@ -81,7 +81,7 @@ class CommonParamsMixin(Policy):
             raise ValueError(
                 f"Unable to parse `{self.max_size}` into size "
                 f"for {type(self).__name__}.max_size ({exc})"
-            )
+            ) from exc
 
     def parse_max_age(self):
         if self.max_age is None or (isinstance(self.max_age, int) and self.max_age > 0):
@@ -100,17 +100,19 @@ class CommonParamsMixin(Policy):
             raise ValueError(
                 f"Unable to parse `{self.max_age}` into duration "
                 f"for {type(self).__name__}.max_age ({exc})"
-            )
+            ) from exc
 
     def enforce_eviction(self):
-        if self.eviction not in Eviction.all():
+        if self.eviction not in Eviction.get_all():
             raise ValueError(
                 f"Unexpected value `{self.eviction}` "
                 f"for {type(self).__name__}.eviction."
-                f"Accepts: {', '.join(Eviction.all())}"
+                f"Accepts: {', '.join(Eviction.get_all())}"
             )
 
     def __post_init__(self):
+        if not self.eviction:
+            self.eviction = Eviction.default()
         self.enforce_eviction()
         self.parse_max_size()
         self.parse_max_age()

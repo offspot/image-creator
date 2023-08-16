@@ -3,11 +3,11 @@ from __future__ import annotations
 import pathlib
 import shutil
 import tempfile
-from collections import OrderedDict as od
+from collections import OrderedDict
 from collections.abc import Callable
 from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any, Dict, Optional
+from typing import Any
 
 import progressbar
 from offspot_config.inputs import File
@@ -135,15 +135,11 @@ def download_file_worker(
                     block_size=block_size,
                     on_data=on_data,
                 )
-                print("EEEE", temp_path, temp_path.exists())
             except Exception as exc:
-                print("EEEE1", temp_path, temp_path.exists())
-                print("?????", exc)
                 temp_path.unlink(missing_ok=True)
                 raise exc
             if cache.should_cache(file):
                 cache.introduce(file, temp_path)
-        print("EEEE2", temp_path, temp_path.exists())
         try:
             expand_file(src=temp_path, method=file.via, dest=dest_path)
         except Exception as exc:
@@ -174,10 +170,10 @@ class FilesMultiDownloader:
         self.on_data = on_data
         self.is_running = False
         self.futures, self.cancelled, self.succeeded, self.failed = (
-            od(),
-            od(),
-            od(),
-            od(),
+            OrderedDict(),
+            OrderedDict(),
+            OrderedDict(),
+            OrderedDict(),
         )
         self.executor = ThreadPoolExecutor(max_workers=concurrency or None)
 
@@ -225,7 +221,7 @@ class FilesMultiDownloader:
         for future in list(self.futures.keys()):
             future.add_done_callback(self.notify_completion)
 
-    def shutdown(self, now=True):
+    def shutdown(self, *, now: bool = True):
         if now or self.cancelled or self.failed:
             self.executor.shutdown(wait=False, cancel_futures=True)
         else:
@@ -349,13 +345,15 @@ class DownloadingContent(Step):
                     logger.message()
                     logger.complete_download(
                         dest_path.name,
-                        format_size(get_size_of(dest_path)),
+                        size=format_size(get_size_of(dest_path)),
                         extra=f"({dl_progress!s})",
                     )
             return 0
 
         # multi-download with UI refresh on MainThread
-        def on_completion(file, result: Any, exc: Exception | None = None):
+        def on_completion(
+            file, result: Any, exc: Exception | None = None  # noqa: ARG001
+        ):
             dl_progress.nb_completed += 1
             dest_path = file.mounted_to(mount_point)
             if exc is not None:
@@ -366,7 +364,7 @@ class DownloadingContent(Step):
             logger.message()
             logger.complete_download(
                 dest_path.name,
-                format_size(get_size_of(dest_path)) + cache_suffix,
+                size=format_size(get_size_of(dest_path)) + cache_suffix,
                 extra=f"({dl_progress!s})",
             )
 

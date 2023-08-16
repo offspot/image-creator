@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# ruff: noqa: T201
 
 """ Outputs the sizes of an OCI Image for use in image.yaml
 
@@ -28,7 +29,6 @@ import subprocess
 import sys
 import tarfile
 import tempfile
-from typing import Tuple
 
 
 def get_dirsize(fpath: pathlib.Path) -> int:
@@ -110,7 +110,7 @@ def main(name_or_path: str) -> int:
 
 
 if __name__ == "__main__":
-    if len(sys.argv) != 2:
+    if len(sys.argv) != 2:  # noqa: PLR2004
         print(f"Usage: {sys.argv[0]} PATH")
         sys.exit(1)
     sys.exit(main(sys.argv[1]))

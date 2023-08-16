@@ -54,7 +54,7 @@ class Logger:
     def ui(self):
         return ui
 
-    def setLevel(self, level: int):
+    def setLevel(self, level: int):  # noqa: N802 (similar API to stdlib logger)
         """reset logger's verbose config based on level"""
         ui.setup(
             verbose=level <= logging.DEBUG,
@@ -172,9 +172,10 @@ class Logger:
     def complete_download(
         self,
         name: str,
+        *,
         size: str | None = None,
         extra: str | None = None,
-        failed: bool | None = False,
+        failed: bool = False,
     ):
         """record completed download, inside a task, potentially following progress"""
         tokens = ["    ", ui.warn if failed else ui.check, name]

@@ -205,7 +205,7 @@ def get_eviction_for(
                     evictions.append(
                         (
                             entry,
-                            f"Would exceed filter max_num ({filter_.max_num} -- {type(filter_.max_num)})",
+                            f"Would exceed filter max_num ({filter_.max_num}",
                         )
                     )
                     continue
@@ -256,7 +256,7 @@ def get_eviction_for(
 
 
 class CacheManager(dict):
-    def __init__(self, root: pathlib.Path, policy: MainPolicy, *args, **kwargs):
+    def __init__(self, root: pathlib.Path, policy: MainPolicy):
         # cache_dir
         root.mkdir(parents=True, exist_ok=True)
         self.root = root
@@ -307,7 +307,7 @@ class CacheManager(dict):
 
     __getitem__ = get
 
-    def in_cache(self, item: Item, check_outdacy: bool | None = False) -> bool:
+    def in_cache(self, item: Item, *, check_outdacy: bool = False) -> bool:
         """whether there is a CacheEntry for this item in cache"""
         if not self.discovered:
             self.walk()
@@ -476,7 +476,7 @@ class CacheManager(dict):
 
         self.considered = True
 
-    def print(self, with_evictions: bool | None = False):
+    def print(self, *, with_evictions: bool = False):  # noqa: A003
         """print content of cache"""
         if not self.discovered:
             self.walk()

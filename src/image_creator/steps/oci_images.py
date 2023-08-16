@@ -58,7 +58,9 @@ class DownloadingOCIImages(Step):
                 rmtree(build_dir)
                 return 1
             else:
-                logger.complete_download(target.name, format_size(get_filesize(target)))
+                logger.complete_download(
+                    target.name, size=format_size(get_filesize(target))
+                )
                 if payload["cache"].should_cache(image):
                     logger.start_task(f"Adding OCI Image {image} to cache…")
                     if payload["cache"].introduce(image, target):
@@ -82,5 +84,7 @@ class DownloadingOCIImages(Step):
             logger.fail_task(str(exc))
             return False
         else:
-            logger.complete_download(target.name, format_size(get_filesize(target)))
+            logger.complete_download(
+                target.name, size=format_size(get_filesize(target))
+            )
         return True

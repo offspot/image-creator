@@ -18,7 +18,6 @@ class CheckCache(Step):
         if not payload["options"].cache_dir:
             logger.add_task("Not using cache")
             payload["cache"] = CacheManager(pathlib.Path(), MainPolicy.disabled())
-            print(payload["cache"])
             return 0
 
         # check cache folder

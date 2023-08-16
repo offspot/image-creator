@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import pathlib
-from typing import Any, Dict
+from typing import Any
 
 from offspot_config.inputs import File
 from offspot_config.utils.misc import (
@@ -97,7 +97,7 @@ class DownloadImage(Step):
                 else base_file.getpath()
             )
 
-        return self.extract(base_file, payload, xz_fpath, target, remove_xz)
+        return self.extract(base_file, payload, xz_fpath, target, remove_xz=remove_xz)
 
     def extract(
         self,
@@ -105,6 +105,7 @@ class DownloadImage(Step):
         payload: dict[str, Any],
         xz_fpath: pathlib.Path,
         target: pathlib.Path,
+        *,
         remove_xz: bool,
     ) -> int:
         logger.start_task(f"Extracting {xz_fpath}…")
