@@ -127,11 +127,11 @@ class ComputeSizes(Step):
         # mapping of volumes/mount point with their cumulative needs
         volumes_map = {}
 
-        def update_map(volume, needs: int, path: pathlib.Path):
+        def update_map(volume: int, needs: int, path: pathlib.Path):
             if volume not in volumes_map:
                 volumes_map[volume] = {"needs": needs, "paths": [path]}
                 return
-            volumes_map[volume]["needs"] + needs
+            volumes_map[volume]["needs"] += needs
             volumes_map[volume]["paths"].append(path)
 
         update_map(target_path.stat().st_dev, needs["target"], target_path)

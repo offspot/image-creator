@@ -16,7 +16,13 @@ from offspot_config.utils.misc import (
     is_http,
 )
 
-from image_creator.cache.policy import Eviction, MainPolicy, Policy
+from image_creator.cache.policy import (
+    Eviction,
+    FilesPolicy,
+    MainPolicy,
+    OCIImagePolicy,
+    Policy,
+)
 from image_creator.constants import Global, logger
 from image_creator.utils.download import get_digest
 
@@ -44,6 +50,8 @@ def path_for_image(image: OCIImage) -> pathlib.Path:
 
 def path_for_file(file: File) -> pathlib.Path:
     """cache-relative path for a File"""
+    if not file.url:
+        raise OSError("Cannot infer path for non-url File")
     # fake a filepath should there be none
     if not file.url.path or file.url.path == "/":
         path = pathlib.Path("/__ROOT__")
@@ -152,7 +160,7 @@ class CacheCandidate(CacheEntry):
 
 
 def get_eviction_for(
-    entries: list[CacheEntry], policy: Policy
+    entries: list[CacheEntry], policy: Policy | OCIImagePolicy | FilesPolicy
 ) -> list[tuple[CacheEntry, str]]:
     """list of (entry, reason) from entries that are expired or outdated"""
     if (
@@ -186,7 +194,7 @@ def get_eviction_for(
                         (
                             entry,
                             "Too old for filter max_age "
-                            f"({format_duration(filter_.max_age)})",
+                            f"({format_duration(filter_.max_age_seconds)})",
                         )
                     )
                     continue
@@ -196,7 +204,7 @@ def get_eviction_for(
                         (
                             entry,
                             "Would exceed filter max_size "
-                            f"({format_size(filter_.max_size)})",
+                            f"({format_size(filter_.max_size_bytes)})",
                         )
                     )
                     continue
@@ -224,7 +232,7 @@ def get_eviction_for(
                 (
                     entry,
                     f"Too old for {type(policy).__name__} max_age "
-                    f"({format_duration(policy.max_age)})",
+                    f"({format_duration(policy.max_age_seconds)})",
                 )
             )
             continue
@@ -234,7 +242,7 @@ def get_eviction_for(
                 (
                     entry,
                     f"Would exceed {type(policy).__name__} max_size "
-                    f"({format_size(policy.max_size)})",
+                    f"({format_size(policy.max_size_bytes)})",
                 )
             )
             continue
@@ -263,7 +271,7 @@ class CacheManager(dict):
         self.ref_date = datetime.datetime.utcnow()
 
         # policy reference
-        self.policy = policy
+        self.policy: MainPolicy = policy
 
         # cached (ahah) list of entries seen in the cache
         self.entries = {}
@@ -321,7 +329,7 @@ class CacheManager(dict):
                 return False
         return present
 
-    __contains__ = in_cache
+    __contains__ = in_cache  # type: ignore
 
     def has_candidate(self, item: Item) -> bool:
         return path_for_item(item) in self.candidates.keys()
@@ -420,14 +428,20 @@ class CacheManager(dict):
         if not self.policy.enabled:
             return []
 
-        evictions = get_eviction_for(
-            [entry for entry in entries if entry.kind == "image"],
-            self.policy.oci_images,
-        )
+        if self.policy.oci_images:
+            evictions = get_eviction_for(
+                [entry for entry in entries if entry.kind == "image"],
+                self.policy.oci_images,
+            )
+        else:
+            evictions = []
+
         entries = [entry for entry in entries if entry not in evictions]
-        evictions += get_eviction_for(
-            [entry for entry in entries if entry.kind == "file"], self.policy.files
-        )
+
+        if self.policy.files:
+            evictions += get_eviction_for(
+                [entry for entry in entries if entry.kind == "file"], self.policy.files
+            )
         entries = [entry for entry in entries if entry not in evictions]
         evictions += get_eviction_for(entries, self.policy)
 

@@ -14,7 +14,7 @@ from image_creator.steps import Step
 
 def download_image(image: OCIImage, dest: pathlib.Path, build_dir: pathlib.Path):
     """download image into a tar file at dest"""
-    export(image=image, platform=Global.platform, to=dest, build_dir=build_dir)
+    export(image=image.oci, platform=Global.platform, to=dest, build_dir=build_dir)
 
 
 class DownloadingOCIImages(Step):

@@ -15,7 +15,7 @@ Colors: dict[Status, ui.Color] = {
     Status.OK: ui.green,
     Status.NOK: ui.red,
 }
-ui.warn = ui.UnicodeSequence(ui.brown, "⚠️", "[!]")
+warn = ui.UnicodeSequence(ui.brown, "⚠️", "[!]")
 
 
 class Logger:
@@ -48,7 +48,7 @@ class Logger:
         if level:
             self.setLevel(level)
 
-        self.currently = None
+        self.currently: str = ""
 
     @property
     def ui(self):
@@ -134,7 +134,7 @@ class Logger:
 
     def end_step(self):
         self.clear()
-        self.mark_as(None)
+        self.mark_as("")
 
     def start_task(self, task: str):
         """Start new task. Task is expectd to end"""
@@ -150,7 +150,7 @@ class Logger:
         if message:
             tokens += [ui.brown, message]
         ui.message(*tokens)
-        self.mark_as(None)
+        self.mark_as("")
 
     def succeed_task(self, message: str | None = None):
         """End current task as successful with optional message"""
@@ -167,7 +167,7 @@ class Logger:
             ui.message(*[ui.brown, message])
         else:
             ui.message()
-        self.mark_as(None)
+        self.mark_as("")
 
     def complete_download(
         self,
@@ -178,7 +178,7 @@ class Logger:
         failed: bool = False,
     ):
         """record completed download, inside a task, potentially following progress"""
-        tokens = ["    ", ui.warn if failed else ui.check, name]
+        tokens = ["    ", warn if failed else ui.check, name]
         if size:
             tokens += [ui.brown, str(size)]
         if extra:

@@ -26,7 +26,7 @@ def download_file(
     only_first_block: bool = False,
     headers: dict[str, str] | None = None,
     on_data: Callable | None = None,
-) -> int | requests.structures.CaseInsensitiveDict:
+) -> int | requests.structures.CaseInsensitiveDict:  # type: ignore
     """Stream data from a URL to either a BytesIO object or a file
     Arguments -
         fpath - Path or BytesIO to write data into
@@ -91,17 +91,17 @@ def get_digest(url: str, *, etag_only: bool | None = False) -> str:
     # looking for MirrorBrain's Digest header and use it
     for hist_resp in resp.history:
         if hist_resp.headers.get("Digest"):
-            return hist_resp.headers.get("Digest")
+            return hist_resp.headers["Digest"]
 
-    etag = resp.headers.get("ETag")
+    etag = resp.headers.get("ETag", "")
     if etag:
         etag = re.sub(r'^"(.+)"$', r"\1", etag)
 
     if etag or etag_only:
         return etag
 
-    length = resp.headers.get("Content-Length")
-    modified = resp.headers.get("Last-Modified")
+    length = resp.headers.get("Content-Length", "")
+    modified = resp.headers.get("Last-Modified", "")
     if not length or not modified:
         return ""
 

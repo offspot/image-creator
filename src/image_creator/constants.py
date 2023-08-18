@@ -105,6 +105,7 @@ class _Global:
     _ready: bool = False
     options: Options
     platform = Platform.parse("linux/arm64/v8")  # our only target arch
+    default_eviction: str = "lru"
 
     @property
     def logger(self):

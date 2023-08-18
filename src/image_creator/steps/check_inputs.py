@@ -203,7 +203,7 @@ class CheckURLs(Step):
 
             logger.start_task(f"Checking {file.geturl()}…")
 
-            if payload["cache"].in_cache(file, True):
+            if payload["cache"].in_cache(file, check_outdacy=True):
                 logger.succeed_task(
                     f"{format_size(payload['cache'][file].size)} (cached)"
                 )
@@ -224,7 +224,7 @@ class CheckURLs(Step):
         for image in payload["config"].all_images:
             logger.start_task(f"Checking OCI Image {image}…")
 
-            if payload["cache"].in_cache(image, True):
+            if payload["cache"].in_cache(image, check_outdacy=True):
                 logger.succeed_task(
                     f"{format_size(payload['cache'][image].size)} (cached)"
                 )

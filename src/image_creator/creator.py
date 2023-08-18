@@ -12,7 +12,7 @@ from image_creator.steps.machine import StepMachine
 
 class ImageCreator:
     def __init__(self, **kwargs: dict[str, Any]):
-        Global.options = Options(**kwargs)
+        Global.options = Options(**kwargs)  # pyright: ignore [reportGeneralTypeIssues]
         Global._ready = True
         # make sure we clean things up before exiting
         atexit.register(self.halt)

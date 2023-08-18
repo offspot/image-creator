@@ -9,8 +9,8 @@ from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import Any
 
-import progressbar
-from offspot_config.inputs import File
+import progressbar  # type: ignore
+from offspot_config.file import File
 from offspot_config.utils.misc import (
     copy_file,
     ensure_dir,
@@ -156,7 +156,7 @@ class FilesMultiDownloader:
         files,
         cache: CacheManager,
         mount_point: pathlib.Path,
-        temp_dir: pathlib.Path | None = None,
+        temp_dir: pathlib.Path,
         concurrency: int | None = None,
         callback: Callable | None = None,
         on_data: Callable | None = None,
@@ -246,7 +246,7 @@ class ProcessingLocalContent(Step):
                 return res
         return 0
 
-    def process_file(self, file: File, mount_point: str):
+    def process_file(self, file: File, mount_point: pathlib.Path):
         dest_path = file.mounted_to(mount_point)
         try:
             ensure_dir(dest_path.parent)
@@ -265,7 +265,7 @@ class ProcessingLocalContent(Step):
                 logger.succeed_task(format_size(size))
             return 0
 
-        src_path = pathlib.Path(file.url)
+        src_path = pathlib.Path(file.geturl())
 
         if file.is_direct:
             logger.start_task(f"Copying file to {file.to}…")
@@ -278,9 +278,9 @@ class ProcessingLocalContent(Step):
                 logger.succeed_task(format_size(get_filesize(dest_path)))
             return 0
 
-        logger.start_task(f"Expanding {self.via} file to {file.to}…")
+        logger.start_task(f"Expanding {file.via} file to {file.to}…")
         try:
-            expand_file(src_path, dest_path, file.via)
+            expand_file(src=src_path, dest=dest_path, method=file.via)
         except Exception as exc:
             logger.fail_task(str(exc))
             return 1

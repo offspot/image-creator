@@ -4,6 +4,7 @@ import datetime
 import re
 from collections.abc import Iterable
 from dataclasses import MISSING, dataclass, field
+from image_creator.constants import Global
 
 from typeguard import typechecked
 
@@ -33,23 +34,23 @@ class Eviction:
 
     @classmethod
     def default(cls) -> str:
-        return cls.lru
+        return Global.default_eviction
 
     @classmethod
     def get_all(cls) -> Iterable:
         return tuple(cls.__dataclass_fields__.keys())
 
 
-class Policy:
-    ...
+# class Policy:
+#     ...
 
 
 @dataclass(kw_only=True)
-class CommonParamsMixin(Policy):
+class Policy:  # CommonParamsMixin
     max_size: int | str | None = None
     max_age: int | str | None = None
     max_num: int | None = None
-    eviction: str
+    eviction: str = Global.default_eviction
 
     @property
     def checkable_fields(self):
@@ -60,7 +61,20 @@ class CommonParamsMixin(Policy):
         """datetime that is max_age in the past"""
         if not self.max_age:
             return None
-        return datetime.datetime.utcnow() - datetime.timedelta(seconds=self.max_age)
+        return datetime.datetime.utcnow() - datetime.timedelta(
+            seconds=self.max_age_seconds
+        )
+
+    @property
+    def max_age_seconds(self) -> int:
+        try:
+            return int(str(self.max_age))
+        except Exception:
+            return -1
+
+    @property
+    def max_size_bytes(self) -> int:
+        return int(str(self.max_size))
 
     def parse_max_size(self):
         if self.max_size is None or (
@@ -120,7 +134,7 @@ class CommonParamsMixin(Policy):
 
 @typechecked
 @dataclass
-class SubPolicyFilter(CommonParamsMixin):
+class SubPolicyFilter(Policy):
     pattern: str
     ignore: bool | None = False
 
@@ -129,7 +143,7 @@ class SubPolicyFilter(CommonParamsMixin):
 
 
 @dataclass()
-class SubPolicy(CommonParamsMixin):
+class SubPolicy(Policy):
     enabled: bool | None = True
     filters: list[SubPolicyFilter] = field(default_factory=list)
 
@@ -165,7 +179,7 @@ class FilesPolicy(SubPolicy):
 
 @typechecked
 @dataclass
-class MainPolicy(CommonParamsMixin):
+class MainPolicy(Policy):
     oci_images: OCIImagePolicy | None = field(default_factory=OCIImagePolicy)
     files: FilesPolicy | None = field(default_factory=FilesPolicy)
     enabled: bool | None = True
