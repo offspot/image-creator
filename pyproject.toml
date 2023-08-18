@@ -24,7 +24,7 @@ dependencies = [
     "humanfriendly==10.0",
     "progressbar2==4.2.0",
     "docker_export==1.0.1",
-
+    "typeguard>=4.1.0",
     "offspot-config @ git+https://github.com/offspot/runtime-config.git@unified#egg=offspot-config",
 ]
 dynamic = ["version"]
@@ -38,7 +38,7 @@ lint = [
   "ruff==0.0.282",
 ]
 check = [
-  "pyright==1.1.320",
+  "pyright==1.1.323",
 ]
 test = [
   "pytest==7.4.0",
