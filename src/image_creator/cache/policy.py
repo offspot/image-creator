@@ -4,9 +4,16 @@ import datetime
 import re
 from collections.abc import Iterable
 from dataclasses import MISSING, dataclass, field
-from image_creator.constants import Global
 
+from offspot_config.utils.misc import (
+    is_dict,
+    is_list_of_dict,
+    parse_duration,
+    parse_size,
+)
 from typeguard import typechecked
+
+from image_creator.constants import Global
 
 try:
     from yaml import CSafeLoader as SafeLoader
@@ -15,13 +22,6 @@ except ImportError:
     # we don't NEED cython ext but it's faster so use it if avail.
     from yaml import SafeLoader
     from yaml import load as yaml_load
-
-from offspot_config.utils.misc import (
-    is_dict,
-    is_list_of_dict,
-    parse_duration,
-    parse_size,
-)
 
 
 @dataclass(init=False)
