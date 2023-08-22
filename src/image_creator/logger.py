@@ -1,14 +1,21 @@
+from __future__ import annotations
+
 import enum
 import logging
 import pathlib
 import traceback
-from typing import Any, Optional, Sequence, Union
+from collections.abc import Sequence
+from typing import Any
 
 import cli_ui as ui
 
 Status = enum.Enum("Status", ["OK", "NOK", "NEUTRAL"])
-Colors = {Status.NEUTRAL: ui.reset, Status.OK: ui.green, Status.NOK: ui.red}
-ui.warn = ui.UnicodeSequence(ui.brown, "⚠️", "[!]")
+Colors: dict[Status, ui.Color] = {
+    Status.NEUTRAL: ui.reset,
+    Status.OK: ui.green,
+    Status.NOK: ui.red,
+}
+warn = ui.UnicodeSequence(ui.brown, "⚠️", "[!]")
 
 
 class Logger:
@@ -32,21 +39,22 @@ class Logger:
 
     def __init__(
         self,
-        level: Optional[int] = logging.INFO,
-        progress_to: Optional[pathlib.Path] = None,
+        level: int | None = logging.INFO,
+        progress_to: pathlib.Path | None = None,
     ):
         self.verbose = level
         self.progress_to = progress_to
 
-        self.setLevel(level)
+        if level:
+            self.setLevel(level)
 
-        self.currently = None
+        self.currently: str = ""
 
     @property
     def ui(self):
         return ui
 
-    def setLevel(self, level: int):
+    def setLevel(self, level: int):  # noqa: N802 (similar API to stdlib logger)
         """reset logger's verbose config based on level"""
         ui.setup(
             verbose=level <= logging.DEBUG,
@@ -94,7 +102,7 @@ class Logger:
     def fatal(self, text: str):
         self.critical(text)
 
-    def table(self, data: Any, headers: Union[str, Sequence[str]]):
+    def table(self, data: Any, headers: str | Sequence[str]):
         ui.info_table(data=data, headers=headers)
 
     @property
@@ -126,7 +134,7 @@ class Logger:
 
     def end_step(self):
         self.clear()
-        self.mark_as(None)
+        self.mark_as("")
 
     def start_task(self, task: str):
         """Start new task. Task is expectd to end"""
@@ -136,40 +144,41 @@ class Logger:
         ui.message("  ", ui.bold, ui.blue, "=>", ui.reset, task, end=" ")
         ui.CONFIG["timestamp"] = False
 
-    def end_task(self, success: Optional[bool] = None, message: Optional[str] = None):
+    def end_task(self, success: bool | None = None, message: str | None = None):
         """End current task with custom success symbol and message"""
         tokens = [] if success is None else [ui.check if success else ui.cross]
         if message:
             tokens += [ui.brown, message]
         ui.message(*tokens)
-        self.mark_as(None)
+        self.mark_as("")
 
-    def succeed_task(self, message: Optional[str] = None):
+    def succeed_task(self, message: str | None = None):
         """End current task as successful with optional message"""
         self.end_task(success=True, message=message)
 
-    def fail_task(self, message: Optional[str] = None):
+    def fail_task(self, message: str | None = None):
         """End current task as unsuccessful with optional message"""
         self.end_task(success=False, message=message)
 
-    def add_task(self, name: str, message: str = None):
+    def add_task(self, name: str, message: str | None = None):
         """Single-call task with no status information"""
         self.start_task(name)
         if message:
             ui.message(*[ui.brown, message])
         else:
             ui.message()
-        self.mark_as(None)
+        self.mark_as("")
 
     def complete_download(
         self,
         name: str,
-        size: Optional[str] = None,
-        extra: Optional[str] = None,
-        failed: Optional[bool] = False,
+        *,
+        size: str | None = None,
+        extra: str | None = None,
+        failed: bool = False,
     ):
         """record completed download, inside a task, potentially following progress"""
-        tokens = ["    ", ui.warn if failed else ui.check, name]
+        tokens = ["    ", warn if failed else ui.check, name]
         if size:
             tokens += [ui.brown, str(size)]
         if extra:

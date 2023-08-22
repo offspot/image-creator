@@ -1,17 +1,20 @@
+from __future__ import annotations
+
 import pathlib
-from typing import Any, Dict
+from typing import Any
+
+from offspot_config.utils.misc import supports_xattr
 
 from image_creator.cache.manager import CacheManager
 from image_creator.cache.policy import MainPolicy
 from image_creator.constants import logger
 from image_creator.steps import Step
-from image_creator.utils.misc import supports_xattr
 
 
 class CheckCache(Step):
-    name = "Checking Cache Policy…"
+    _name = "Checking Cache Policy…"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         if not payload["options"].cache_dir:
             logger.add_task("Not using cache")
             payload["cache"] = CacheManager(pathlib.Path(), MainPolicy.disabled())
@@ -41,6 +44,7 @@ class CheckCache(Step):
                 policy = MainPolicy.read_from(policy_fpath.read_text())
             except Exception as exc:
                 logger.fail_task(f"Failed to parse cache policy: {exc}")
+                logger.exception(exc)
                 return 1
             logger.succeed_task()
 
@@ -58,18 +62,17 @@ class CheckCache(Step):
 
 
 class PrintingCache(Step):
-    name = "Printing Cache Content…"
+    _name = "Printing Cache Content…"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         payload["cache"].print(with_evictions=True)
         return 0
 
 
 class ApplyCachePolicy(Step):
-    name = "Enforcing Cache Policy…"
+    _name = "Enforcing Cache Policy…"
 
-    def run(self, payload: Dict[str, Any]) -> int:
-
+    def run(self, payload: dict[str, Any]) -> int:
         entries = payload["cache"].apply() + payload["cache"].evict_outdated()
         for entry, reason, succeeded in entries:
             logger.start_task(f"Evicting {entry.source}")

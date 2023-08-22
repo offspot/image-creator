@@ -1,22 +1,27 @@
+from __future__ import annotations
+
 import datetime
 import re
+from collections.abc import Iterable
 from dataclasses import MISSING, dataclass, field
-from typing import Iterable, List, Optional, Union
 
-try:
-    from yaml import CLoader as Loader
-    from yaml import load as yaml_load
-except ImportError:
-    # we don't NEED cython ext but it's faster so use it if avail.
-    from yaml import Loader, load as yaml_load
-
-from image_creator.utils.misc import (
-    enforce_types,
+from offspot_config.utils.misc import (
     is_dict,
     is_list_of_dict,
     parse_duration,
     parse_size,
 )
+from typeguard import typechecked
+
+from image_creator.constants import Global
+
+try:
+    from yaml import CSafeLoader as SafeLoader
+    from yaml import load as yaml_load
+except ImportError:
+    # we don't NEED cython ext but it's faster so use it if avail.
+    from yaml import SafeLoader
+    from yaml import load as yaml_load
 
 
 @dataclass(init=False)
@@ -29,34 +34,47 @@ class Eviction:
 
     @classmethod
     def default(cls) -> str:
-        return cls.lru
+        return Global.default_eviction
 
     @classmethod
-    def all(cls) -> Iterable:
+    def get_all(cls) -> Iterable:
         return tuple(cls.__dataclass_fields__.keys())
 
 
-class Policy:
-    ...
+# class Policy:
+#     ...
 
 
 @dataclass(kw_only=True)
-class CommonParamsMixin(Policy):
-    max_size: Optional[Union[int, str]] = None
-    max_age: Optional[Union[int, str]] = None
-    max_num: Optional[int] = None
-    eviction: str = Eviction.default()
+class Policy:  # CommonParamsMixin
+    max_size: int | str | None = None
+    max_age: int | str | None = None
+    max_num: int | None = None
+    eviction: str = Global.default_eviction
 
     @property
     def checkable_fields(self):
         return ("max_size", "max_age", "max_num")
 
     @property
-    def max_age_dt(self) -> Optional[datetime.datetime]:
+    def max_age_dt(self) -> datetime.datetime | None:
         """datetime that is max_age in the past"""
         if not self.max_age:
             return None
-        return datetime.datetime.utcnow() - datetime.timedelta(seconds=self.max_age)
+        return datetime.datetime.utcnow() - datetime.timedelta(
+            seconds=self.max_age_seconds
+        )
+
+    @property
+    def max_age_seconds(self) -> int:
+        try:
+            return int(str(self.max_age))
+        except Exception:
+            return -1
+
+    @property
+    def max_size_bytes(self) -> int:
+        return int(str(self.max_size))
 
     def parse_max_size(self):
         if self.max_size is None or (
@@ -77,7 +95,7 @@ class CommonParamsMixin(Policy):
             raise ValueError(
                 f"Unable to parse `{self.max_size}` into size "
                 f"for {type(self).__name__}.max_size ({exc})"
-            )
+            ) from exc
 
     def parse_max_age(self):
         if self.max_age is None or (isinstance(self.max_age, int) and self.max_age > 0):
@@ -96,36 +114,38 @@ class CommonParamsMixin(Policy):
             raise ValueError(
                 f"Unable to parse `{self.max_age}` into duration "
                 f"for {type(self).__name__}.max_age ({exc})"
-            )
+            ) from exc
 
     def enforce_eviction(self):
-        if self.eviction not in Eviction.all():
+        if self.eviction not in Eviction.get_all():
             raise ValueError(
                 f"Unexpected value `{self.eviction}` "
                 f"for {type(self).__name__}.eviction."
-                f"Accepts: {', '.join(Eviction.all())}"
+                f"Accepts: {', '.join(Eviction.get_all())}"
             )
 
     def __post_init__(self):
+        if not self.eviction:
+            self.eviction = Eviction.default()
         self.enforce_eviction()
         self.parse_max_size()
         self.parse_max_age()
 
 
-@enforce_types
+@typechecked
 @dataclass
-class SubPolicyFilter(CommonParamsMixin):
+class SubPolicyFilter(Policy):
     pattern: str
-    ignore: Optional[bool] = False
+    ignore: bool | None = False
 
     def match(self, value: str):
         return re.match(self.pattern, value, re.IGNORECASE)
 
 
 @dataclass()
-class SubPolicy(CommonParamsMixin):
-    enabled: Optional[bool] = True
-    filters: List[SubPolicyFilter] = field(default_factory=list)
+class SubPolicy(Policy):
+    enabled: bool | None = True
+    filters: list[SubPolicyFilter] = field(default_factory=list)
 
     def __post_init__(self, *args, **kwargs):
         super().__post_init__(*args, **kwargs)
@@ -147,22 +167,22 @@ class SubPolicy(CommonParamsMixin):
                     )
 
 
-@enforce_types
+@typechecked
 class OCIImagePolicy(SubPolicy):
     ...
 
 
-@enforce_types
+@typechecked
 class FilesPolicy(SubPolicy):
     ...
 
 
-@enforce_types
+@typechecked
 @dataclass
-class MainPolicy(CommonParamsMixin):
-    oci_images: Optional[OCIImagePolicy] = field(default_factory=OCIImagePolicy)
-    files: Optional[FilesPolicy] = field(default_factory=FilesPolicy)
-    enabled: Optional[bool] = True
+class MainPolicy(Policy):
+    oci_images: OCIImagePolicy | None = field(default_factory=OCIImagePolicy)
+    files: FilesPolicy | None = field(default_factory=FilesPolicy)
+    enabled: bool | None = True
 
     def __post_init__(self, *args, **kwargs):
         super().__post_init__(*args, **kwargs)
@@ -193,7 +213,7 @@ class MainPolicy(CommonParamsMixin):
         """Policy from a YAML string config"""
 
         # parse YAML (Dict) will be our input to Policy()
-        payload = yaml_load(text, Loader=Loader)
+        payload = yaml_load(text, Loader=SafeLoader)
 
         # Subpolicies have subclasses for human-friendlyness
         _sub_policy_map = {"oci_images": OCIImagePolicy, "files": FilesPolicy}
@@ -206,7 +226,7 @@ class MainPolicy(CommonParamsMixin):
             subload = payload.pop(name, None)
 
             # fail early if SubPolicy is not well formatted
-            if not is_dict(subload, True):
+            if not is_dict(subload, accepts_none=True):
                 raise ValueError(f"Unexpected type for Policy.{name}: {type(subload)}")
 
             # remove filters from (sub)payload ; we'll replace with actual FilterPolicy

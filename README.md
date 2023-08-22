@@ -54,7 +54,7 @@ Image configuration is done through a YAML file which must match the following f
 | `base.root_size`   | `string`/`int` | Size of the root (system) partition in the referenced base image (used to calculate free space)                                                                    |
 | `output.size`      | `string`/`int` | Requested size of output image. Accepts `auto` for an power-of-2 sized that can fit the content (⚠️ TBI)                                                           |
 | `oci_images`       | `image[]`      | List of  OCI Image                                                                                                                                                 |
-| **`image[].id`**   | `string`       | **specific** OCI Image name. Prefer ghcr.io if possible. [Format](https://github.com/opencontainers/.github/blob/master/docs/docs/introduction/digests.md)         |
+| **`image[].ident`**| `string`       | **specific** OCI Image name. Prefer ghcr.io if possible. [Format](https://github.com/opencontainers/.github/blob/master/docs/docs/introduction/digests.md)         |
 | `image[].url`      | `string`       | Optional URL to the exported tar file of the image. Downloaded from registry if not present                                                                        |
 | `image[].filesize` | `int`          | Size in bytes of the exported tar file of the image                                                                                                                |
 | `image[].fullsize` | `int`          | Size in bytes of the extracted tar file of the image. See Get OCI Image Sizes below                                                                                |
@@ -63,7 +63,7 @@ Image configuration is done through a YAML file which must match the following f
 | `files[].to`       | `string`       | [required] Path to store file at. Must be a descendent of `/data`                                                                                                  |
 | `files[].content`  | `string`       | Text content of the file to write. Replaces `url` if present                                                                                                       |
 | `files[].via`      | `string`       | For `url`-based files, transformation to apply on downloaded file: `direct` (default): simple download, `bztar`, `gztar`, `tar`, `xztar`, `zip` to expand archives |
-| `files[].size`     | `string`/`int` | **Only for `untar`/`unzip`** should file be compressed. Specify expanded size. Assumes File-size (uncompressed) if not specified. ⚠️ Fails if lower than file size |
+| `files[].size`     | `string`/`int` | **Only for `*tar`/`zip`** should file be compressed. Specify expanded size. Assumes File-size (uncompressed) if not specified. ⚠️ Fails if lower than file size |
 | `write_config`     | `bool`         | Whether to write this file to `/data/conf/image.yaml`                                                                                                              |
 | `offspot`          | `dict`         | [runtime-config](https://github.com/offspot/runtime-config) configuration. Will be parsed and dumped to `/boot/offspot.yaml`                                       |
 

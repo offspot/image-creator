@@ -1,0 +1,54 @@
+name: Tests
+
+on:
+  release:
+    types: [published]
+
+env:
+  SSH_KEY: /tmp/id_rsa
+
+jobs:
+  build-binary:
+    # building on ubuntu-20.04 so we'll link to glibc 2.31 (bullseye+)
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          architecture: x64
+      - name: Update environ (filename)
+        run: |
+          import os
+          import sys
+          if os.getenv("GITHUB_REF_TYPE") != "tag"
+              print("cannot release outside a tag")
+              sys.exit(1)
+
+          tag = os.getenv("GITHUB_REF_NAME")
+          env = {"BIN_FILENAME": f"image-creator_linux-x86_64_{tag}"}
+          with open(os.getenv("GITHUB_ENV"), "a") as fh:
+            for name, value in env.items():
+              fh.write(f"{name}={value}\n")
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y python3-dev patchelf ccache build-essential
+      - name: Install python dependencies
+        run: |
+          pip install -U pip
+          pip install .[scripts,binary]
+      - name: Build binary
+        run: invoke binary --filename "/tmp/$BIN_FILENAME"
+      - name: Test binary is able to start
+        run: /tmp/$BIN_FILENAME -V
+
+      - name: Upload base image to WebDAV
+        run: |
+          echo "Uploading image ${{ env.BIN_FILENAME }} & info to WebDAV..."
+          curl -u "${{ secrets.DRIVE_CREDENTIALS }}" -T "/tmp/${{ env.BIN_FILENAME }}" -sw '%{http_code}' "https://drive.offspot.it/_webdav/image-creator/${{ env.BIN_FILENAME }}"
+          echo "### Artefacts" >> $GITHUB_STEP_SUMMARY
+          echo "- [${{ env.BIN_FILENAME }}](https://drive.offspot.it/image-creator/${{ env.BIN_FILENAME }})" >> $GITHUB_STEP_SUMMARY
+

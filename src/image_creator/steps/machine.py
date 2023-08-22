@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+from typing import ClassVar
+
 from image_creator.constants import logger
 from image_creator.logger import Status
 from image_creator.steps import GivingFeedback, VirtualInitStep
@@ -25,7 +29,7 @@ from image_creator.steps.sizes import ComputeSizes
 class StepMachine:
     """Ordered list of Steps"""
 
-    steps = [
+    steps: ClassVar[list] = [
         VirtualInitStep,
         CheckRequirements,
         CheckInputs,
@@ -63,7 +67,7 @@ class StepMachine:
     @classmethod
     def remove_step(cls, step: str):
         """reduce StepMachine to end with that step"""
-        stepcls = [stepcls for stepcls in cls.steps if stepcls.__name__ == step][0]
+        stepcls = next(stepcls for stepcls in cls.steps if stepcls.__name__ == step)
         cls.steps.remove(stepcls)
 
     def _get_step(self, index: int):
@@ -81,15 +85,15 @@ class StepMachine:
         try:
             new_index = self._current + 1
             self.steps[new_index]
-        except IndexError:
-            raise StopIteration()
+        except IndexError as exc:
+            raise StopIteration() from exc
 
         try:
             self.step = self._get_step(new_index)
         except Exception as exc:
             logger.error(f"failed to init step {self.steps[new_index]}: {exc}")
             logger.exception(exc)
-            raise StopIteration
+            raise StopIteration() from exc
         self._current = new_index
         return self.step
 

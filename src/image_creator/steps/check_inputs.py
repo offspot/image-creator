@@ -1,27 +1,30 @@
+from __future__ import annotations
+
 import pathlib
-from typing import Any, Dict
+from typing import Any
+
+from offspot_config.inputs import MainConfig
+from offspot_config.utils.misc import format_size
 
 try:
     from yaml import CDumper as Dumper
     from yaml import dump as yaml_dump
 except ImportError:
     # we don't NEED cython ext but it's faster so use it if avail.
-    from yaml import Dumper, dump as yaml_dump
+    from yaml import Dumper
+    from yaml import dump as yaml_dump
 
 
-from image_creator.constants import logger
-from image_creator.inputs import MainConfig
+from image_creator.constants import Global, logger
 from image_creator.steps import Step
 from image_creator.utils import requirements
 from image_creator.utils.download import read_text_from
-from image_creator.utils.misc import format_size
-from image_creator.utils.oci_images import image_exists
 
 
 class CheckRequirements(Step):
-    name = "Checking system requirements…"
+    _name: str = "Checking system requirements…"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:  # noqa: ARG002
         """whether system requirements are satisfied"""
 
         all_good = True
@@ -62,10 +65,9 @@ class CheckRequirements(Step):
 
 
 class CheckInputs(Step):
-    name = "Checking config inputs…"
+    _name = "Checking config inputs…"
 
-    def run(self, payload: Dict[str, Any]) -> int:
-
+    def run(self, payload: dict[str, Any]) -> int:
         # checks split accross various methods to reduce complexity
         for method in (
             "check_parsing",
@@ -81,7 +83,7 @@ class CheckInputs(Step):
 
         return 0
 
-    def check_parsing(self, payload: Dict[str, Any]):
+    def check_parsing(self, payload: dict[str, Any]):
         logger.start_task(f"Reading config from {payload['options'].config_src}")
         try:
             if isinstance(payload["options"].config_src, pathlib.Path):
@@ -105,8 +107,9 @@ class CheckInputs(Step):
             logger.succeed_task()
         return 0
 
-    def check_different_output(self, payload: Dict[str, Any]) -> int:
+    def check_different_output(self, payload: dict[str, Any]) -> int:
         logger.start_task("Making sure base and output are different…")
+
         if (
             payload["config"].base_file.is_local
             and payload["config"].base_file.getpath() == payload["options"].output_path
@@ -121,7 +124,7 @@ class CheckInputs(Step):
 
         return 0
 
-    def check_target_path(self, payload: Dict[str, Any]) -> int:
+    def check_target_path(self, payload: dict[str, Any]) -> int:
         # skip if --check-only
         if payload["options"].check_only:
             return 0
@@ -143,7 +146,7 @@ class CheckInputs(Step):
                 logger.succeed_task()
         return 0
 
-    def check_target_location(self, payload: Dict[str, Any]) -> int:
+    def check_target_location(self, payload: dict[str, Any]) -> int:
         # skip if --check-only
         if payload["options"].check_only:
             return 0
@@ -158,7 +161,7 @@ class CheckInputs(Step):
             logger.succeed_task(str(payload["options"].output_path))
         return 0
 
-    def check_target_nondestructive(self, payload: Dict[str, Any]) -> int:
+    def check_target_nondestructive(self, payload: dict[str, Any]) -> int:
         """--check-only friendly test for output
 
         does not remove output if already present"""
@@ -189,25 +192,23 @@ class CheckInputs(Step):
 
 
 class CheckURLs(Step):
-    name = "Checking all Sources…"
+    _name = "Checking all Sources…"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         all_valid = True
 
-        for file in [payload["config"].base_file] + payload["config"].all_files:
+        for file in [payload["config"].base_file, *payload["config"].all_files]:
             if file.is_plain:
                 continue
 
             logger.start_task(f"Checking {file.geturl()}…")
 
-            if payload["cache"].in_cache(file, True):
+            if payload["cache"].in_cache(file, check_outdacy=True):
                 logger.succeed_task(
                     f"{format_size(payload['cache'][file].size)} (cached)"
                 )
                 continue
 
-            # TODO: account for user-defined size
-            # TODO: fail on missing size
             size = file.fetch_size()
             if size >= 0:
                 logger.succeed_task(format_size(size))
@@ -221,13 +222,13 @@ class CheckURLs(Step):
         for image in payload["config"].all_images:
             logger.start_task(f"Checking OCI Image {image}…")
 
-            if payload["cache"].in_cache(image, True):
+            if payload["cache"].in_cache(image, check_outdacy=True):
                 logger.succeed_task(
                     f"{format_size(payload['cache'][image].size)} (cached)"
                 )
                 continue
 
-            if not image_exists(image.oci):
+            if not image.oci.exists(Global.platform):
                 logger.fail_task()
                 all_valid &= False
             else:
@@ -256,9 +257,9 @@ class CheckURLs(Step):
 
 
 class WritingOffspotConfig(Step):
-    name = "Writing Offspot Config…"
+    _name = "Writing Offspot Config…"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         if not payload["config"].offspot:
             logger.add_task("No Offspot config passed")
             return 0

@@ -1,9 +1,19 @@
+from __future__ import annotations
+
 import pathlib
-from typing import Any, Dict
+from typing import Any
+
+from offspot_config.utils.misc import format_size, get_freespace
 
 from image_creator.constants import logger
 from image_creator.steps import Step
-from image_creator.utils.misc import format_size, get_freespace
+
+
+def round_for_cluster(size: int) -> int:
+    """rounded size to the next value dividable by 512 (cluster size)"""
+    if size % 512 == 0:
+        return size
+    return size - (size % 512) + 512
 
 
 def get_margin_for(content_size: int) -> int:
@@ -25,10 +35,9 @@ def get_target_path(output_path: pathlib.Path) -> pathlib.Path:
 
 
 class ComputeSizes(Step):
-    name = "Compute sizes…"
+    _name = "Compute sizes…"
 
-    def run(self, payload: Dict[str, Any]) -> int:
-
+    def run(self, payload: dict[str, Any]) -> int:
         tar_images_size = sum(
             [image.filesize for image in payload["config"].all_images]
         )
@@ -76,11 +85,11 @@ class ComputeSizes(Step):
                 return 1
             logger.succeed_task()
 
-        payload["output_size"] = image_size
+        payload["output_size"] = round_for_cluster(image_size)
 
         return self.check_physical_space(payload, image_size)
 
-    def get_needs(self, payload: Dict[str, Any], image_size: int) -> Dict[str, int]:
+    def get_needs(self, payload: dict[str, Any], image_size: int) -> dict[str, int]:
         needs = {}
         # target volume needs:
         # - uncompressed image file is written to it
@@ -92,7 +101,7 @@ class ComputeSizes(Step):
         remote_compressed_files = [
             file for file in payload["config"].remote_files if file.via != "direct"
         ]
-        needs["build_dir"] = sum([file.filesize for file in remote_compressed_files])
+        needs["build_dir"] = sum([file.size for file in remote_compressed_files])
 
         # cache needs:
         # - what will be introduced to cache
@@ -110,7 +119,7 @@ class ComputeSizes(Step):
             )
         return needs
 
-    def check_physical_space(self, payload: Dict[str, Any], image_size: int) -> int:
+    def check_physical_space(self, payload: dict[str, Any], image_size: int) -> int:
         logger.start_task("Checking free-space availability…")
         target_path = get_target_path(payload["options"].output_path)
         needs = self.get_needs(payload, image_size)
@@ -118,11 +127,11 @@ class ComputeSizes(Step):
         # mapping of volumes/mount point with their cumulative needs
         volumes_map = {}
 
-        def update_map(volume, needs: int, path: pathlib.Path):
+        def update_map(volume: int, needs: int, path: pathlib.Path):
             if volume not in volumes_map:
                 volumes_map[volume] = {"needs": needs, "paths": [path]}
                 return
-            volumes_map[volume]["needs"] + needs
+            volumes_map[volume]["needs"] += needs
             volumes_map[volume]["paths"].append(path)
 
         update_map(target_path.stat().st_dev, needs["target"], target_path)

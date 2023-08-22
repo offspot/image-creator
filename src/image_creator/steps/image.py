@@ -1,15 +1,18 @@
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Any
+
+from offspot_config.utils.misc import format_size
 
 from image_creator.constants import logger
 from image_creator.steps import Step
 from image_creator.utils.image import Image
-from image_creator.utils.misc import format_size
 
 
 class ResizingImage(Step):
-    name = "Resizing image"
+    _name = "Resizing image"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         logger.start_task("Checking image size…")
         payload["image"] = Image(payload["options"].output_path)
         try:
@@ -64,9 +67,9 @@ class ResizingImage(Step):
 
 
 class MountingDataPart(Step):
-    name = "Mounting data partition"
+    _name = "Mounting data partition"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         logger.start_task(f"Mouting {payload['image'].loop_dev}p3…")
         try:
             mounted_on = payload["image"].mount_p3()
@@ -83,9 +86,9 @@ class MountingDataPart(Step):
 
 
 class UnmountingDataPart(Step):
-    name = "Unmounting data partition"
+    _name = "Unmounting data partition"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         logger.start_task(f"Unmouting {payload['image'].p3_mounted_on}…")
         try:
             payload["image"].unmount_p3()
@@ -98,9 +101,9 @@ class UnmountingDataPart(Step):
 
 
 class UnmountingBootPart(Step):
-    name = "Unmounting boot partition"
+    _name = "Unmounting boot partition"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         logger.start_task(f"Unmouting {payload['image'].p1_mounted_on}…")
         try:
             payload["image"].unmount_p1()
@@ -113,9 +116,9 @@ class UnmountingBootPart(Step):
 
 
 class MountingBootPart(Step):
-    name = "Mounting boot partition"
+    _name = "Mounting boot partition"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         logger.start_task(f"Mouting {payload['image'].loop_dev}p1…")
         try:
             mounted_on = payload["image"].mount_p1()
@@ -132,9 +135,9 @@ class MountingBootPart(Step):
 
 
 class DetachingImage(Step):
-    name = "Detaching Image"
+    _name = "Detaching Image"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         logger.start_task(f"Detach image from {payload['image'].loop_dev}")
         if not payload["image"].detach():
             logger.fail_task(f"{payload['image']} not detached!")

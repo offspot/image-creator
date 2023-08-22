@@ -1,19 +1,17 @@
+from __future__ import annotations
+
 import pathlib
 import shutil
 import tempfile
-from collections import OrderedDict as od
+from collections import OrderedDict
+from collections.abc import Callable
 from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
 from dataclasses import dataclass
-from typing import Any, Callable, Dict, Optional
+from typing import Any
 
-import progressbar
-
-from image_creator.cache.manager import CacheManager
-from image_creator.constants import logger
-from image_creator.inputs import File
-from image_creator.steps import Step
-from image_creator.utils.download import download_file
-from image_creator.utils.misc import (
+import progressbar  # type: ignore
+from offspot_config.file import File
+from offspot_config.utils.misc import (
     copy_file,
     ensure_dir,
     expand_file,
@@ -21,6 +19,11 @@ from image_creator.utils.misc import (
     get_filesize,
     get_size_of,
 )
+
+from image_creator.cache.manager import CacheManager
+from image_creator.constants import logger
+from image_creator.steps import Step
+from image_creator.utils.download import download_file
 
 
 @dataclass
@@ -94,13 +97,14 @@ def download_file_worker(
     cache: CacheManager,
     mount_point: pathlib.Path,
     temp_dir: pathlib.Path,
-    on_data: Optional[Callable] = None,
+    on_data: Callable | None = None,
 ):
     """Downloads a File into its destination, unpacking if required"""
     block_size = 2**20  # 1MiB
 
     dest_path = file.mounted_to(mount_point)
     ensure_dir(dest_path.parent)
+    ensure_dir(temp_dir)
 
     if file.is_direct:
         if file in cache:
@@ -118,16 +122,16 @@ def download_file_worker(
 
     else:
         temp_path = pathlib.Path(
-            tempfile.NamedTemporaryFile(dir=temp_dir, suffix=dest_path.name).name
+            tempfile.NamedTemporaryFile(dir=temp_dir, suffix=f"_{dest_path.name}").name
         )
         if file in cache:
-            copy_file(cache[file].fpath, dest_path)
+            copy_file(cache[file].fpath, temp_path)
             cache[file] += 1
         else:
             try:
                 download_file(
-                    file.geturl(),
-                    temp_path,
+                    url=file.geturl(),
+                    to=temp_path,
                     block_size=block_size,
                     on_data=on_data,
                 )
@@ -137,7 +141,7 @@ def download_file_worker(
             if cache.should_cache(file):
                 cache.introduce(file, temp_path)
         try:
-            expand_file(temp_path, dest_path, file.via)
+            expand_file(src=temp_path, method=file.via, dest=dest_path)
         except Exception as exc:
             raise exc
         finally:
@@ -152,10 +156,10 @@ class FilesMultiDownloader:
         files,
         cache: CacheManager,
         mount_point: pathlib.Path,
-        temp_dir: Optional[pathlib.Path] = None,
-        concurrency: Optional[int] = None,
-        callback: Optional[Callable] = None,
-        on_data: Optional[Callable] = None,
+        temp_dir: pathlib.Path,
+        concurrency: int | None = None,
+        callback: Callable | None = None,
+        on_data: Callable | None = None,
     ):
         self.files = files
         self.cache = cache
@@ -166,10 +170,10 @@ class FilesMultiDownloader:
         self.on_data = on_data
         self.is_running = False
         self.futures, self.cancelled, self.succeeded, self.failed = (
-            od(),
-            od(),
-            od(),
-            od(),
+            OrderedDict(),
+            OrderedDict(),
+            OrderedDict(),
+            OrderedDict(),
         )
         self.executor = ThreadPoolExecutor(max_workers=concurrency or None)
 
@@ -217,7 +221,7 @@ class FilesMultiDownloader:
         for future in list(self.futures.keys()):
             future.add_done_callback(self.notify_completion)
 
-    def shutdown(self, now=True):
+    def shutdown(self, *, now: bool = True):
         if now or self.cancelled or self.failed:
             self.executor.shutdown(wait=False, cancel_futures=True)
         else:
@@ -226,9 +230,9 @@ class FilesMultiDownloader:
 
 
 class ProcessingLocalContent(Step):
-    name = "Processing local contents"
+    _name = "Processing local contents"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         mount_point = payload["image"].p3_mounted_on
 
         if not payload["config"].non_remote_files:
@@ -242,7 +246,7 @@ class ProcessingLocalContent(Step):
                 return res
         return 0
 
-    def process_file(self, file: File, mount_point: str):
+    def process_file(self, file: File, mount_point: pathlib.Path):
         dest_path = file.mounted_to(mount_point)
         try:
             ensure_dir(dest_path.parent)
@@ -261,7 +265,7 @@ class ProcessingLocalContent(Step):
                 logger.succeed_task(format_size(size))
             return 0
 
-        src_path = pathlib.Path(file.url)
+        src_path = pathlib.Path(file.geturl())
 
         if file.is_direct:
             logger.start_task(f"Copying file to {file.to}…")
@@ -274,9 +278,9 @@ class ProcessingLocalContent(Step):
                 logger.succeed_task(format_size(get_filesize(dest_path)))
             return 0
 
-        logger.start_task(f"Expanding {self.via} file to {file.to}…")
+        logger.start_task(f"Expanding {file.via} file to {file.to}…")
         try:
-            expand_file(src_path, dest_path, file.via)
+            expand_file(src=src_path, dest=dest_path, method=file.via)
         except Exception as exc:
             logger.fail_task(str(exc))
             return 1
@@ -287,9 +291,9 @@ class ProcessingLocalContent(Step):
 
 
 class DownloadingContent(Step):
-    name = "Downloading content"
+    _name = "Downloading content"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         mount_point = payload["image"].p3_mounted_on
 
         nb_remotes = len(payload["config"].remote_files)
@@ -341,13 +345,15 @@ class DownloadingContent(Step):
                     logger.message()
                     logger.complete_download(
                         dest_path.name,
-                        format_size(get_size_of(dest_path)),
-                        extra=f"({str(dl_progress)})",
+                        size=format_size(get_size_of(dest_path)),
+                        extra=f"({dl_progress!s})",
                     )
             return 0
 
         # multi-download with UI refresh on MainThread
-        def on_completion(file, result: Any, exc: Exception = None):
+        def on_completion(
+            file, result: Any, exc: Exception | None = None  # noqa: ARG001
+        ):
             dl_progress.nb_completed += 1
             dest_path = file.mounted_to(mount_point)
             if exc is not None:
@@ -358,8 +364,8 @@ class DownloadingContent(Step):
             logger.message()
             logger.complete_download(
                 dest_path.name,
-                format_size(get_size_of(dest_path)) + cache_suffix,
-                extra=f"({str(dl_progress)})",
+                size=format_size(get_size_of(dest_path)) + cache_suffix,
+                extra=f"({dl_progress!s})",
             )
 
         downloader = FilesMultiDownloader(
@@ -383,8 +389,7 @@ class DownloadingContent(Step):
             while downloader.is_running:
                 dl_pb.update()
         except KeyboardInterrupt:
-            downloader.shutdown(now=True)
-            # TODO: we should actually interrupt downloads here
+            downloader.shutdown(now=True)  # we should actually interrupt downloads here
             raise
         else:
             downloader.shutdown()

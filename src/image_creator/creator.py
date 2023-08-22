@@ -1,14 +1,19 @@
+from __future__ import annotations
+
 import atexit
+from typing import Any
+
+from offspot_config.utils.misc import rmtree
 
 from image_creator.constants import Global, Options, banner, logger
 from image_creator.logger import Status
 from image_creator.steps.machine import StepMachine
-from image_creator.utils.misc import rmtree
 
 
 class ImageCreator:
-    def __init__(self, **kwargs):
-        Global.options = Options(**kwargs)
+    def __init__(self, **kwargs: dict[str, Any]):
+        Global.options = Options(**kwargs)  # pyright: ignore [reportGeneralTypeIssues]
+        Global._ready = True
         # make sure we clean things up before exiting
         atexit.register(self.halt)
 
@@ -28,7 +33,7 @@ class ImageCreator:
             res = step.run(self.machine.payload)
             logger.end_step()
             if res != 0:
-                logger.error(f"Step “{repr(step)}” returned {res}")
+                logger.error(f"Step “{step!r}” returned {res}")
                 return res
 
     def halt(self):

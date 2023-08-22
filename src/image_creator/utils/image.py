@@ -1,17 +1,18 @@
+from __future__ import annotations
+
 import json
 import pathlib
 import re
 import subprocess
 import tempfile
-from typing import Optional
 
-from image_creator.utils.misc import get_environ, rmtree
+from offspot_config.utils.misc import get_environ, rmtree
 
 
 def get_image_size(fpath: pathlib.Path) -> int:
     """Size in bytes of the virtual device in image"""
     virtsize_re = re.compile(
-        r"^virtual size: ([0-9\.\sa-zA-Z]+) \((?P<size>\d+) bytes\)"
+        r"^virtual size: ([0-9\.\sa-zA-Z]+) \((?P<size>\d+) bytes\)"  # ya
     )
     for line in subprocess.run(
         ["/usr/bin/env", "qemu-img", "info", "-f", "raw", str(fpath)],
@@ -22,7 +23,8 @@ def get_image_size(fpath: pathlib.Path) -> int:
     ).stdout.splitlines():
         match = virtsize_re.match(line)
         if match:
-            return int(match.groupdict().get("size"))
+            return int(match.groupdict()["size"])
+    return -1
 
 
 def resize_image(fpath: pathlib.Path, size: int):
@@ -72,7 +74,7 @@ def attach_to_device(img_fpath: pathlib.Path, loop_dev: str):
     )
 
 
-def detach_device(loop_dev: str, failsafe: Optional[bool] = False) -> bool:
+def detach_device(loop_dev: str, *, failsafe: bool = False) -> bool:
     """whether detaching this loop-device succeeded"""
     return (
         subprocess.run(
@@ -101,7 +103,7 @@ def get_device_sectors(dev_path: str) -> int:
     ).stdout.splitlines()[0]
     match = summary_re.match(line)
     if match:
-        return int(match.groupdict().get("sectors"))
+        return int(match.groupdict()["sectors"])
     raise ValueError(f"Unable to get nb of sectors for {dev_path}")
 
 
@@ -119,7 +121,7 @@ def get_thirdpart_start_sector(dev_path) -> int:
     ).stdout.splitlines()[-1]
     match = part_re.match(line)
     if match:
-        return int(match.groupdict().get("start"))
+        return int(match.groupdict()["start"])
     raise ValueError(f"Unable to get start sector for {dev_path}p3")
 
 
@@ -133,6 +135,17 @@ def resize_third_partition(dev_path: str):
     commands = ["d", "3", "n", "p", "3", str(start_sector), str(end_sector), "N", "w"]
     subprocess.run(
         ["/usr/bin/env", "fdisk", dev_path],
+        # fdisk might return ioctl failed to apply.
+        # not much of an issue. in this case partprobe should help
+        check=False,
+        input="\n".join(commands),
+        capture_output=True,
+        text=True,
+        env=get_environ(),
+    )
+
+    subprocess.run(
+        ["/usr/bin/env", "partprobe", "--summary", dev_path],
         check=True,
         input="\n".join(commands),
         capture_output=True,
@@ -159,9 +172,7 @@ def resize_third_partition(dev_path: str):
     )
 
 
-def mount_on(
-    dev_path: str, mount_point: pathlib.Path, filesystem: Optional[str]
-) -> bool:
+def mount_on(dev_path: str, mount_point: pathlib.Path, filesystem: str | None) -> bool:
     """whether mounting device onto mount point succeeded"""
     commands = ["/usr/bin/env", "mount"]
     if filesystem:
@@ -194,15 +205,15 @@ def unmount(mount_point: pathlib.Path) -> bool:
 class Image:
     """File-backed Image that can be attached/resized/mounted"""
 
-    def __init__(self, fpath: pathlib.Path, mount_in: Optional[pathlib.Path] = None):
+    def __init__(self, fpath: pathlib.Path, mount_in: pathlib.Path | None = None):
         # ensure image is readable
         with open(fpath, "rb") as fh:
             fh.read(1024)
-        self.fpath = fpath
-        self.loop_dev = None
-        self.p1_mounted_on = None
-        self.p3_mounted_on = None
-        self.mount_in = mount_in
+        self.fpath: pathlib.Path = fpath
+        self.loop_dev: str = ""
+        self.p1_mounted_on: pathlib.Path | None = None
+        self.p3_mounted_on: pathlib.Path | None = None
+        self.mount_in: pathlib.Path | None = mount_in
 
     @property
     def is_mounted(self) -> bool:
@@ -225,7 +236,7 @@ class Image:
         """attach image to loop device"""
         if not self.loop_dev or is_loopdev_free(self.loop_dev):
             detach_device(self.loop_dev, failsafe=True)
-            self.loop_dev = None
+            self.loop_dev = ""
             self.assign_loopdev()
         attach_to_device(self.fpath, self.loop_dev)
 
@@ -234,7 +245,7 @@ class Image:
         if self.is_mounted:
             self.unmount_all()
         if self.loop_dev and detach_device(self.loop_dev):
-            self.loop_dev = None
+            self.loop_dev = ""
             return True
         return False
 
@@ -248,19 +259,19 @@ class Image:
 
     def mount_p1(self) -> pathlib.Path:
         """mount first (boot) partition"""
-        self.mount_part(1)
+        return self.mount_part(1)
 
     def mount_p3(self) -> pathlib.Path:
         """mount third (data) partition"""
-        self.mount_part(3)
+        return self.mount_part(3)
 
     def unmount_p1(self) -> pathlib.Path:
         """unmount first (boot) partition"""
-        self.unmount_part(1)
+        return self.unmount_part(1)
 
     def unmount_p3(self) -> pathlib.Path:
         """unmount third (data) partition"""
-        self.unmount_part(3)
+        return self.unmount_part(3)
 
     def mount_part(self, part_num: int) -> pathlib.Path:
         """path to mounted specific partition"""
@@ -271,20 +282,22 @@ class Image:
         if mount_on(f"{self.loop_dev}p{part_num}", mount_point, fs):
             setattr(self, f"p{part_num}_mounted_on", mount_point)
         else:
-            raise IOError(
+            raise OSError(
                 f"Unable to mount {self.loop_dev}p{part_num} on {mount_point}"
             )
+        return mount_point
 
-    def unmount_part(self, part_num: int):
+    def unmount_part(self, part_num: int) -> pathlib.Path:
         """unmount specific partition"""
         mount_point = getattr(self, f"p{part_num}_mounted_on")
         if not mount_point:
-            return
+            return mount_point
         if unmount(mount_point):
             setattr(self, f"p{part_num}_mounted_on", None)
             rmtree(mount_point)
         else:
-            raise IOError(f"Unable to unmount p{part_num} at {mount_point}")
+            raise OSError(f"Unable to unmount p{part_num} at {mount_point}")
+        return mount_point
 
     def unmount_all(self):
         """failsafely unmount all partitions we would have mounted"""

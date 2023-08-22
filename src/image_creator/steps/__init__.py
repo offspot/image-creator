@@ -1,4 +1,6 @@
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Any
 
 from image_creator.constants import logger
 
@@ -8,7 +10,8 @@ class Step:
 
     # name of step to be overriden
     @property
-    def name(self):
+    def name(self) -> str:
+        return getattr(self, "_name", repr(self))
         return repr(self)
 
     def __repr__(self):
@@ -17,11 +20,11 @@ class Step:
     def __str__(self):
         return self.name
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         """actual step implementation. 0 on success"""
         raise NotImplementedError()
 
-    def cleanup(self, payload: Dict[str, Any]):
+    def cleanup(self, payload: dict[str, Any]):
         """clean resources reserved in run()"""
         ...
 
@@ -31,9 +34,9 @@ class VirtualInitStep(Step):
 
 
 class GivingFeedback(Step):
-    name: str = "Giving creation feedback"
+    _name: str = "Giving creation feedback"
 
-    def run(self, payload: Dict[str, Any]) -> int:
+    def run(self, payload: dict[str, Any]) -> int:
         payload["succeeded"] = True
         logger.start_task("Image created successfuly")
         logger.succeed_task(str(payload["options"].output_path))
