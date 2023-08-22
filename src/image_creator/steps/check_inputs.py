@@ -209,8 +209,6 @@ class CheckURLs(Step):
                 )
                 continue
 
-            # TODO: account for user-defined size
-            # TODO: fail on missing size
             size = file.fetch_size()
             if size >= 0:
                 logger.succeed_task(format_size(size))

@@ -121,7 +121,7 @@ def fixall(ctx: Context, args: str = "."):
         "no-compress": "dont zstd-compress binary (faster startup on macOS)",
     },
 )
-def binary(ctx: Context, filename: str = "", no_compress: bool = False):
+def binary(ctx: Context, filename: str = "", *, no_compress: bool = False):
     """build a standalone binary executable with nuitka"""
     fpath = (
         pathlib.Path(filename or f"image-creator_{__version__}-nc")
@@ -142,7 +142,7 @@ def binary(ctx: Context, filename: str = "", no_compress: bool = False):
         "--warn-implicit-exceptions",
         "--warn-unusual-code",
         "--assume-yes-for-downloads",
-        f'--output-dir="{str(fpath.parent)}"',
+        f'--output-dir="{fpath.parent!s}"',
         f'--output-filename="{fpath.name}"',
         "--remove-output",
         "--no-progressbar",

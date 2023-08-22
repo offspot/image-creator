@@ -389,8 +389,7 @@ class DownloadingContent(Step):
             while downloader.is_running:
                 dl_pb.update()
         except KeyboardInterrupt:
-            downloader.shutdown(now=True)
-            # TODO: we should actually interrupt downloads here
+            downloader.shutdown(now=True)  # we should actually interrupt downloads here
             raise
         else:
             downloader.shutdown()

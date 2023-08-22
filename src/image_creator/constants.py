@@ -13,10 +13,6 @@ from offspot_config.utils.misc import is_http, parse_size
 from image_creator import __version__ as vers
 from image_creator.logger import Logger
 
-# where will data partition be monted on final device.
-# used as reference for destinations in config file and in the UI
-# TODO: moved to offspot_config
-# DATA_PART_PATH = pathlib.Path("/data")
 # version of the python interpreter
 pyvers = ".".join([str(p) for p in sys.version_info[:3]])
 banner: str = rf"""
