@@ -28,7 +28,7 @@ jobs:
       - name: Install python dependencies
         run: |
           pip install -U pip
-          pip install .[binary]
+          pip install .[scripts,binary]
       - name: Build binary
         run: invoke binary --filename '/tmp/image-creator'
       - name: Test binary is able to start
