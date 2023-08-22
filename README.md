@@ -3,9 +3,8 @@
 RaspberryPi image creator to build OLIP or Kiwix Hotspot off [`base-image`](https://github.com/offspot/base-image).
 
 [![CodeFactor](https://www.codefactor.io/repository/github/offspot/image-creator/badge)](https://www.codefactor.io/repository/github/offspot/image-creator)
-[![Build Status](https://github.com/offspot/image-creator/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/offspot/image-creator/actions/workflows/build.yml?query=branch%3Amain)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-
+[![PyPI - Python Version](https://img.shields.io/badge/python-3.11-blue)]([https://pypi.org/project/great_project](https://drive.offspot.it/image-creator/))
 
 ## Usage
 
