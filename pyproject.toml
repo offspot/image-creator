@@ -25,7 +25,7 @@ dependencies = [
     "progressbar2==4.2.0",
     "docker_export==1.0.1",
     "typeguard>=4.1.0",
-    "offspot-config @ git+https://github.com/offspot/runtime-config.git@unified#egg=offspot-config",
+    "offspot-config==1.3.0",
 ]
 dynamic = ["version"]
 
@@ -42,7 +42,13 @@ check = [
 ]
 test = [
   "pytest==7.4.0",
+  "pytest-cov==4.1.0",
   "coverage==7.2.7",
+]
+binary = [
+  "ordered-set==4.1.0",
+  "zstandard==0.21.0",
+  "nuitka==1.7.10",
 ]
 dev = [
   "pre-commit==3.3.3",
@@ -88,6 +94,7 @@ run = "inv test --args '{args}'"
 run-cov = "inv test-cov --args '{args}'"
 report-cov = "inv report-cov"
 coverage = "inv coverage --args '{args}'"
+html = "inv coverage --html --args '{args}'"
 
 [tool.hatch.envs.lint]
 template = "lint"
@@ -108,6 +115,12 @@ features = ["scripts", "check"]
 [tool.hatch.envs.check.scripts]
 pyright = "inv check-pyright --args '{args}'"
 all = "inv checkall --args '{args}'"
+
+[tool.hatch.envs.binary]
+features = ["scripts", "binary"]
+
+[tool.hatch.envs.binary.scripts]
+build = "inv binary --filename '{args}'"
 
 [tool.black]
 line-length = 88
