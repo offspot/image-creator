@@ -1,0 +1,36 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+env:
+  SSH_KEY: /tmp/id_rsa
+
+jobs:
+  build-binary:
+    # building on ubuntu-20.04 so we'll link to glibc 2.31 (bullseye+)
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          architecture: x64
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y python3-dev patchelf ccache build-essential
+      - name: Install python dependencies
+        run: |
+          pip install -U pip
+          pip install .[binary]
+      - name: Build binary
+        run: invoke binary --filename '/tmp/image-creator'
+      - name: Test binary is able to start
+        run: /tmp/image-creator -V
+
