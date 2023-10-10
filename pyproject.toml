@@ -63,7 +63,7 @@ Homepage = "https://github.com/offspot/image-creator"
 Donate = "https://www.kiwix.org/en/support-us/"
 
 [project.scripts]
-great-binary = "image_creator.entrypoint:main"
+image-creator = "image_creator.entrypoint:main"
 
 [tool.hatch.metadata]
 allow-direct-references = true
