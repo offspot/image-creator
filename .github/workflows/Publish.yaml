@@ -24,11 +24,11 @@ jobs:
         run: |
           import os
           import sys
-          if os.getenv("GITHUB_REF_TYPE") != "tag"
+          if os.getenv("GITHUB_REF_TYPE") != "tag":
               print("cannot release outside a tag")
               sys.exit(1)
 
-          tag = os.getenv("GITHUB_REF_NAME")
+          tag = os.getenv("GITHUB_REF_NAME", "unknown")
           env = {"BIN_FILENAME": f"image-creator_linux-x86_64_{tag}"}
           with open(os.getenv("GITHUB_ENV"), "a") as fh:
             for name, value in env.items():
