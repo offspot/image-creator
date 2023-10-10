@@ -183,6 +183,7 @@ def mount_on(dev_path: str, mount_point: pathlib.Path, filesystem: str | None) -
             commands,
             capture_output=True,
             text=True,
+            check=False,
             env=get_environ(),
         ).returncode
         == 0
@@ -196,6 +197,7 @@ def unmount(mount_point: pathlib.Path) -> bool:
             ["/usr/bin/env", "umount", str(mount_point)],
             capture_output=True,
             text=True,
+            check=False,
             env=get_environ(),
         ).returncode
         == 0

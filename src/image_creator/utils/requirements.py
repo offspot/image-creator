@@ -51,7 +51,9 @@ def has_all_binaries() -> tuple[bool, list[str]]:
     for binary in ("losetup", "fdisk", "resize2fs", "mount", "umount", "qemu-img"):
         try:
             if (
-                subprocess.run(["/usr/bin/env", binary], capture_output=True).returncode
+                subprocess.run(
+                    ["/usr/bin/env", binary], check=False, capture_output=True
+                ).returncode
                 == missing_bin_retcode
             ):
                 missing_bins.append(binary)
@@ -64,7 +66,7 @@ def has_loop_device() -> bool:
     """whether requesting a loop-device is possible"""
     return (
         subprocess.run(
-            ["/usr/bin/env", "losetup", "-f"], capture_output=True
+            ["/usr/bin/env", "losetup", "-f"], check=False, capture_output=True
         ).returncode
         == 0
     )
