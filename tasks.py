@@ -124,7 +124,9 @@ def fixall(ctx: Context, args: str = "."):
 def binary(ctx: Context, filename: str = "", *, no_compress: bool = False):
     """build a standalone binary executable with nuitka"""
     fpath = (
-        pathlib.Path(filename or f"image-creator_{__version__}-nc")
+        pathlib.Path(
+            filename or f"image-creator_{__version__}{'-nc' if no_compress else ''}"
+        )
         .expanduser()
         .resolve()
     )
