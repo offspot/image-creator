@@ -225,6 +225,9 @@ class MainPolicy(Policy):
             # remove he key from payload ; we'll replace it with actual SubPolocy
             subload = payload.pop(name, None)
 
+            if not subload:
+                continue
+
             # fail early if SubPolicy is not well formatted
             if not is_dict(subload, accepts_none=True):
                 raise ValueError(f"Unexpected type for Policy.{name}: {type(subload)}")
