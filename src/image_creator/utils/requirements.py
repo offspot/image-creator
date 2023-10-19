@@ -22,11 +22,12 @@ tools:
     - mount (mount)
     - umount (mount)
     - qemu-img (qemu-utils)
+    - partprobe (parted)
 
 Sample setup (debian)
 sudo modprobe --first-time loop
 sudo modprobe --first-time ext4
-sudo apt-get install --no-install-recommends mount fdisk e2fsprogs qemu-utils
+sudo apt-get install --no-install-recommends mount fdisk e2fsprogs qemu-utils parted
 """
 
 
@@ -48,7 +49,16 @@ def has_all_binaries() -> tuple[bool, list[str]]:
     """whether all required binaries are present, with list of missing ones"""
     missing_bins: list[str] = []
     missing_bin_retcode = 127
-    for binary in ("losetup", "fdisk", "resize2fs", "mount", "umount", "qemu-img"):
+    for binary in (
+        "e2fsck",
+        "fdisk",
+        "losetup",
+        "mount",
+        "partprobe",
+        "qemu-img",
+        "resize2fs",
+        "umount",
+    ):
         try:
             if (
                 subprocess.run(
