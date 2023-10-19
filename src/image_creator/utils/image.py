@@ -63,6 +63,17 @@ def is_loopdev_free(loop_dev: str):
     return loop_dev not in [device["name"] for device in devices]
 
 
+def create_block_special_device(dev_path: str, major: int, minor: int):
+    """create a special block device (for partitions, inside docker)"""
+    subprocess.run(
+        ["/usr/bin/env", "mknod", dev_path, "b", str(major), str(minor)],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=get_environ(),
+    )
+
+
 def attach_to_device(img_fpath: pathlib.Path, loop_dev: str):
     """attach a device image to a loop-device"""
     subprocess.run(
@@ -73,19 +84,48 @@ def attach_to_device(img_fpath: pathlib.Path, loop_dev: str):
         env=get_environ(),
     )
 
+    # create nodes for partitions if not present (typically when run in docker)
+    if not pathlib.Path(f"{loop_dev}p1").exists():
+        for index, part_line in enumerate(
+            subprocess.run(
+                [
+                    "/usr/bin/env",
+                    "lsblk",
+                    "--raw",
+                    "--output",
+                    "MAJ:MIN",
+                    "--noheadings",
+                    loop_dev,
+                ],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=get_environ(),
+            ).stdout.splitlines()[1:]
+        ):
+            major, minor = part_line.strip().split(":", 1)
+            create_block_special_device(
+                dev_path=f"{loop_dev}p{index + 1}", major=int(major), minor=int(minor)
+            )
+
 
 def detach_device(loop_dev: str, *, failsafe: bool = False) -> bool:
     """whether detaching this loop-device succeeded"""
-    return (
-        subprocess.run(
-            ["/usr/bin/env", "losetup", "--detach", loop_dev],
-            check=not failsafe,
-            capture_output=True,
-            text=True,
-            env=get_environ(),
-        ).returncode
-        == 0
+    ps = subprocess.run(
+        ["/usr/bin/env", "losetup", "--detach", loop_dev],
+        check=not failsafe,
+        capture_output=True,
+        text=True,
+        env=get_environ(),
     )
+
+    # remove special block devices if still present (when in docker)
+    loop_path = pathlib.Path(loop_dev)
+    if loop_path.with_name(f"{loop_path.name}p1").exists():
+        for part_path in loop_path.parent.glob(f"{loop_path.name}p*"):
+            part_path.unlink(missing_ok=True)
+
+    return ps.returncode == 0
 
 
 def get_device_sectors(dev_path: str) -> int:

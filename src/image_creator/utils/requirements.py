@@ -23,11 +23,14 @@ tools:
     - umount (mount)
     - qemu-img (qemu-utils)
     - partprobe (parted)
+    - lsblk (util-linux)
+    - mknod (coreutils)
 
 Sample setup (debian)
 sudo modprobe --first-time loop
 sudo modprobe --first-time ext4
-sudo apt-get install --no-install-recommends mount fdisk e2fsprogs qemu-utils parted
+sudo apt-get install --no-install-recommends coreutils util-linux \
+                                             mount fdisk e2fsprogs qemu-utils parted
 """
 
 
@@ -53,6 +56,8 @@ def has_all_binaries() -> tuple[bool, list[str]]:
         "e2fsck",
         "fdisk",
         "losetup",
+        "lsblk",
+        "mknod",
         "mount",
         "partprobe",
         "qemu-img",
