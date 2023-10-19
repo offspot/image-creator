@@ -25,11 +25,12 @@ tools:
     - partprobe (parted)
     - lsblk (util-linux)
     - mknod (coreutils)
+    - dmsetup (dmsetup)
 
 Sample setup (debian)
 sudo modprobe --first-time loop
 sudo modprobe --first-time ext4
-sudo apt-get install --no-install-recommends coreutils util-linux \
+sudo apt-get install --no-install-recommends coreutils util-linux dmsetup \
                                              mount fdisk e2fsprogs qemu-utils parted
 """
 
@@ -53,6 +54,7 @@ def has_all_binaries() -> tuple[bool, list[str]]:
     missing_bins: list[str] = []
     missing_bin_retcode = 127
     for binary in (
+        "dmsetup",
         "e2fsck",
         "fdisk",
         "losetup",
