@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import pathlib
 import re
 import subprocess
@@ -8,9 +9,14 @@ import tempfile
 
 from offspot_config.utils.misc import get_environ, rmtree
 
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger("image-debug")
+logger.setLevel(logging.DEBUG)
+
 
 def get_image_size(fpath: pathlib.Path) -> int:
     """Size in bytes of the virtual device in image"""
+    logger.info("get_image_size")
     virtsize_re = re.compile(
         r"^virtual size: ([0-9\.\sa-zA-Z]+) \((?P<size>\d+) bytes\)"  # ya
     )
@@ -65,6 +71,7 @@ def is_loopdev_free(loop_dev: str):
 
 def create_block_special_device(dev_path: str, major: int, minor: int):
     """create a special block device (for partitions, inside docker)"""
+    logger.debug(f"Create mknod for {dev_path} with {major=} {minor=}")
     subprocess.run(
         ["/usr/bin/env", "mknod", dev_path, "b", str(major), str(minor)],
         check=True,
@@ -86,6 +93,7 @@ def attach_to_device(img_fpath: pathlib.Path, loop_dev: str):
 
     # create nodes for partitions if not present (typically when run in docker)
     if not pathlib.Path(f"{loop_dev}p1").exists():
+        logger.debug(f"Missing {loop_dev}p1 on fs")
         for index, part_line in enumerate(
             subprocess.run(
                 [
@@ -103,10 +111,13 @@ def attach_to_device(img_fpath: pathlib.Path, loop_dev: str):
                 env=get_environ(),
             ).stdout.splitlines()[1:]
         ):
+            logger.debug(f"  {part_line=}")
             major, minor = part_line.strip().split(":", 1)
             create_block_special_device(
                 dev_path=f"{loop_dev}p{index + 1}", major=int(major), minor=int(minor)
             )
+    else:
+        logger.debug(f"Found {loop_dev}p1 on fs")
 
 
 def detach_device(loop_dev: str, *, failsafe: bool = False) -> bool:
@@ -122,8 +133,12 @@ def detach_device(loop_dev: str, *, failsafe: bool = False) -> bool:
     # remove special block devices if still present (when in docker)
     loop_path = pathlib.Path(loop_dev)
     if loop_path.with_name(f"{loop_path.name}p1").exists():
+        logger.debug(f"{loop_dev}p1 not removed from fs")
         for part_path in loop_path.parent.glob(f"{loop_path.name}p*"):
+            logger.debug(f"Unlinking {part_path}")
             part_path.unlink(missing_ok=True)
+    else:
+        logger.debug(f"{loop_dev} properly removed from fs")
 
     return ps.returncode == 0
 
@@ -183,6 +198,7 @@ def resize_third_partition(dev_path: str):
         text=True,
         env=get_environ(),
     )
+    logger.debug(f"fdisk suceeded in deleting/recreating 3rd part of {dev_path}")
 
     subprocess.run(
         ["/usr/bin/env", "partprobe", "--summary", dev_path],
@@ -192,6 +208,12 @@ def resize_third_partition(dev_path: str):
         text=True,
         env=get_environ(),
     )
+    logger.debug(f"partprobe for {dev_path} succeeded")
+
+    if pathlib.Path(f"{dev_path}p3").exists():
+        logger.debug(f"{dev_path}p3 exists")
+    else:
+        logger.debug(f"{dev_path}p3 DOES NOT exists")
 
     # check fs on 3rd part
     subprocess.run(
@@ -202,6 +224,8 @@ def resize_third_partition(dev_path: str):
         env=get_environ(),
     )
 
+    logger.debug(f"e2fsck of {dev_path}p3 succeeded")
+
     # resize fs on 3rd part
     subprocess.run(
         ["/usr/bin/env", "resize2fs", f"{dev_path}p3"],
@@ -210,6 +234,8 @@ def resize_third_partition(dev_path: str):
         text=True,
         env=get_environ(),
     )
+
+    logger.debug(f"resize2fs of {dev_path}p3 succeeded")
 
 
 def mount_on(dev_path: str, mount_point: pathlib.Path, filesystem: str | None) -> bool:

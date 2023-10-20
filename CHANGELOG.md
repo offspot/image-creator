@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Fixed OCI Image download
 - Prevented HTTP inconsistencies (HEAD vs GET size) to break due to progress error
+- [TEMPORARILY] Adding a lot of debug to image resizing underlying calls
 
 ## [0.4] - 2023-10-19
 
