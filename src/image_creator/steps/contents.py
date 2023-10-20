@@ -86,7 +86,10 @@ class MultiDownloadProgressBar:
         self.dl_progress = dl_progress
 
     def update(self):
-        self.bar.update(self.dl_progress.bytes_received)
+        self.bar.update(
+            # make sure we don't update bar above 100% (will not work)
+            min([self.dl_progress.bytes_received, self.dl_progress.bytes_total])
+        )
 
     def finish(self):
         self.bar.finish()
