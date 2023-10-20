@@ -52,7 +52,7 @@ class DownloadingOCIImages(Step):
                 f"Downloading OCI Image to {target.relative_to(mount_point)}…"
             )
             try:
-                download_image(image=image.oci, dest=target, build_dir=build_dir)
+                download_image(image=image, dest=target, build_dir=build_dir)
             except Exception as exc:
                 logger.fail_task(str(exc))
                 rmtree(build_dir)
