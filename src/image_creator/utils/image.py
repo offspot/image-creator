@@ -180,6 +180,45 @@ def get_thirdpart_start_sector(dev_path) -> int:
     raise ValueError(f"Unable to get start sector for {dev_path}p3")
 
 
+def check_third_partition_device(dev_path: str):
+    """Ensure 3rd partition is properly looped and dettach/reattach if not"""
+    part_path = pathlib.Path(f"{dev_path}p3")
+    if not part_path.exists():
+        raise OSError("Special block device missing {part_path}")
+
+    logger.debug(f"Checking {dev_path}p3 with fdisk")
+    # using fdisk to check whether properly backed
+    if (
+        subprocess.run(
+            ["/usr/bin/env", "fdisk", "--list", str(part_path)],
+            check=False,
+            capture_output=True,
+            text=True,
+            env=get_environ(),
+        ).returncode
+        == 0
+    ):
+        return
+
+    logger.debug(f"fidsk reported {dev_path}p3 not OK")
+
+    # we need to detach image and reattach (reusing special blkdev)
+    image_path = subprocess.run(
+        ["/usr/bin/env", "losetup", "--output", "BACK-FILE", "--noheadings", dev_path],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=get_environ(),
+    ).stdout.strip()
+
+    logger.debug(f"Found {dev_path} backed by {image_path}")
+
+    logger.debug(f"Dettaching {dev_path}")
+    detach_device(loop_dev=dev_path)
+    logger.debug(f"Attaching {dev_path} to {image_path}")
+    attach_to_device(img_fpath=pathlib.Path(image_path), loop_dev=dev_path)
+
+
 def resize_third_partition(dev_path: str):
     """recreate third partition of a device and its (ext4!) filesystem"""
     nb_sectors = get_device_sectors(dev_path)
@@ -214,6 +253,9 @@ def resize_third_partition(dev_path: str):
         logger.debug(f"{dev_path}p3 exists")
     else:
         logger.debug(f"{dev_path}p3 DOES NOT exists")
+
+    check_third_partition_device(dev_path)
+    logger.debug(f"{dev_path}p3 checked OK")
 
     # check fs on 3rd part
     subprocess.run(
