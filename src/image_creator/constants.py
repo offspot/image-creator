@@ -99,9 +99,14 @@ class Options:
 
 class _Global:
     _ready: bool = False
+    _debug: bool = False
     options: Options
     platform = Platform.parse("linux/arm64/v8")  # our only target arch
     default_eviction: str = "lru"
+
+    @property
+    def debug(self):
+        return Global.options.debug if Global._ready else self._debug
 
     @property
     def logger(self):

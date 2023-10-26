@@ -13,7 +13,7 @@ from image_creator.constants import Global
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("image-debug")
-if Global.options.debug:
+if Global.debug:
     logger.setLevel(logging.DEBUG)
 
 

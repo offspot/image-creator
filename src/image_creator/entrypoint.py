@@ -5,8 +5,7 @@ import sys
 import tempfile
 
 from image_creator import __version__
-from image_creator.constants import logger
-from image_creator.creator import ImageCreator
+from image_creator.constants import Global, logger
 
 
 def main():
@@ -88,6 +87,10 @@ def main():
     )
 
     kwargs = dict(parser.parse_args()._get_kwargs())
+    Global._debug = kwargs.get("debug", False)
+
+    # purposedly import after setting debug
+    from image_creator.creator import ImageCreator
 
     try:
         app = ImageCreator(**kwargs)
