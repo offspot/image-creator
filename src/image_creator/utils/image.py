@@ -9,14 +9,16 @@ import tempfile
 
 from offspot_config.utils.misc import get_environ, rmtree
 
+from image_creator.constants import Global
+
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("image-debug")
-logger.setLevel(logging.DEBUG)
+if Global.options.debug:
+    logger.setLevel(logging.DEBUG)
 
 
 def get_image_size(fpath: pathlib.Path) -> int:
     """Size in bytes of the virtual device in image"""
-    logger.info("get_image_size")
     virtsize_re = re.compile(
         r"^virtual size: ([0-9\.\sa-zA-Z]+) \((?P<size>\d+) bytes\)"  # ya
     )
@@ -33,10 +35,14 @@ def get_image_size(fpath: pathlib.Path) -> int:
     return -1
 
 
-def resize_image(fpath: pathlib.Path, size: int):
+def resize_image(fpath: pathlib.Path, size: int, *, shrink: bool):
     """Resize virtual device in image (bytes)"""
+    command = ["/usr/bin/env", "qemu-img", "resize"]
+    if shrink:
+        command += ["--shrink"]
+    command += ["-f", "raw", fpath, str(size)]
     subprocess.run(
-        ["/usr/bin/env", "qemu-img", "resize", "-f", "raw", fpath, str(size)],
+        command,
         check=True,
         capture_output=True,
         text=True,
@@ -184,7 +190,7 @@ def check_third_partition_device(dev_path: str):
     """Ensure 3rd partition is properly looped and dettach/reattach if not"""
     part_path = pathlib.Path(f"{dev_path}p3")
     if not part_path.exists():
-        raise OSError("Special block device missing {part_path}")
+        raise OSError(f"Special block device missing {part_path}")
 
     logger.debug(f"Checking {dev_path}p3 with fdisk")
     # using fdisk to check whether properly backed
@@ -359,9 +365,9 @@ class Image:
             return True
         return False
 
-    def resize(self, to: int):
+    def resize(self, to: int, *, shrink: bool):
         """resize virtual device inside image (expand only)"""
-        resize_image(self.fpath, size=to)
+        resize_image(self.fpath, size=to, shrink=shrink)
 
     def resize_last_part(self):
         """resize 3rd partition and filesystem to use all remaining space"""

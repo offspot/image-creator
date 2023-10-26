@@ -52,8 +52,8 @@ class ComputeSizes(Step):
             [tar_images_size, expanded_images_size, expanded_files_size]
         )
         margin = get_margin_for(raw_content_size)
-        min_image_size = sum(
-            [payload["config"].base.rootfs_size, raw_content_size, margin]
+        min_image_size = round_for_cluster(
+            sum([payload["config"].base.rootfs_size, raw_content_size, margin])
         )
 
         logger.add_task("Computed Minimum Image Size", format_size(min_image_size))
@@ -76,6 +76,9 @@ class ComputeSizes(Step):
             )
         else:
             image_size = min_image_size
+
+        # record min_image_size for later use (shrinking)
+        payload["min_image_size"] = min_image_size
 
         # user might have requested a maximum image size to produce; must comply
         if payload["options"].max_size:
