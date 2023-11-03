@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - third-party commands (image) output displayed on --debug
+- Create special devices for partitions if not exists (not only if fdisk failed)
 
 ## [0.6] - 2023-10-20
 
