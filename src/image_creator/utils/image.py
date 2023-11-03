@@ -189,24 +189,26 @@ def get_thirdpart_start_sector(dev_path) -> int:
 def check_third_partition_device(dev_path: str):
     """Ensure 3rd partition is properly looped and dettach/reattach if not"""
     part_path = pathlib.Path(f"{dev_path}p3")
-    if not part_path.exists():
-        raise OSError(f"Special block device missing {part_path}")
+    if part_path.exists():
+        logger.debug(f"Checking {dev_path}p3 with fdisk")
+        # using fdisk to check whether properly backed
+        if (
+            subprocess.run(
+                ["/usr/bin/env", "fdisk", "--list", str(part_path)],
+                check=False,
+                capture_output=only_on_debug,
+                text=True,
+                env=get_environ(),
+            ).returncode
+            == 0
+        ):
+            return
 
-    logger.debug(f"Checking {dev_path}p3 with fdisk")
-    # using fdisk to check whether properly backed
-    if (
-        subprocess.run(
-            ["/usr/bin/env", "fdisk", "--list", str(part_path)],
-            check=False,
-            capture_output=True,
-            text=True,
-            env=get_environ(),
-        ).returncode
-        == 0
-    ):
-        return
-
-    logger.debug(f"fidsk reported {dev_path}p3 not OK")
+        logger.debug(f"fidsk reported {dev_path}p3 not OK")
+    elif not pathlib.Path(f"{dev_path}").exists():
+        raise OSError(f"Special block device missing {dev_path}")
+    else:
+        logger.debug(f"{dev_path}p3 not present")
 
     # we need to detach image and reattach (reusing special blkdev)
     image_path = subprocess.run(
