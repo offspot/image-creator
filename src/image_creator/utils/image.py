@@ -15,6 +15,7 @@ logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("image-debug")
 if Global.debug:
     logger.setLevel(logging.DEBUG)
+only_on_debug: bool = not Global.debug
 
 
 def get_image_size(fpath: pathlib.Path) -> int:
@@ -44,7 +45,7 @@ def resize_image(fpath: pathlib.Path, size: int, *, shrink: bool):
     subprocess.run(
         command,
         check=True,
-        capture_output=True,
+        capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
@@ -81,7 +82,7 @@ def create_block_special_device(dev_path: str, major: int, minor: int):
     subprocess.run(
         ["/usr/bin/env", "mknod", dev_path, "b", str(major), str(minor)],
         check=True,
-        capture_output=True,
+        capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
@@ -92,7 +93,7 @@ def attach_to_device(img_fpath: pathlib.Path, loop_dev: str):
     subprocess.run(
         ["/usr/bin/env", "losetup", "--partscan", loop_dev, str(img_fpath)],
         check=True,
-        capture_output=True,
+        capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
@@ -131,7 +132,7 @@ def detach_device(loop_dev: str, *, failsafe: bool = False) -> bool:
     ps = subprocess.run(
         ["/usr/bin/env", "losetup", "--detach", loop_dev],
         check=not failsafe,
-        capture_output=True,
+        capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
@@ -241,7 +242,7 @@ def resize_third_partition(dev_path: str):
         # not much of an issue. in this case partprobe should help
         check=False,
         input="\n".join(commands),
-        capture_output=True,
+        capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
@@ -251,7 +252,7 @@ def resize_third_partition(dev_path: str):
         ["/usr/bin/env", "partprobe", "--summary", dev_path],
         check=True,
         input="\n".join(commands),
-        capture_output=True,
+        capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
@@ -269,7 +270,7 @@ def resize_third_partition(dev_path: str):
     subprocess.run(
         ["/usr/bin/env", "e2fsck", "-p", f"{dev_path}p3"],
         check=True,
-        capture_output=True,
+        capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
@@ -280,7 +281,7 @@ def resize_third_partition(dev_path: str):
     subprocess.run(
         ["/usr/bin/env", "resize2fs", f"{dev_path}p3"],
         check=True,
-        capture_output=True,
+        capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
@@ -297,7 +298,7 @@ def mount_on(dev_path: str, mount_point: pathlib.Path, filesystem: str | None) -
     return (
         subprocess.run(
             commands,
-            capture_output=True,
+            capture_output=only_on_debug,
             text=True,
             check=False,
             env=get_environ(),
@@ -311,7 +312,7 @@ def unmount(mount_point: pathlib.Path) -> bool:
     return (
         subprocess.run(
             ["/usr/bin/env", "umount", str(mount_point)],
-            capture_output=True,
+            capture_output=only_on_debug,
             text=True,
             check=False,
             env=get_environ(),
