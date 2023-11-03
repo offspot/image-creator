@@ -235,7 +235,7 @@ def resize_third_partition(dev_path: str):
     end_sector = nb_sectors - 1
 
     # delete 3rd part and recreate from same sector until end of device
-    commands = ["d", "3", "n", "p", "3", str(start_sector), str(end_sector), "N", "w"]
+    commands = ["d", "3", "n", "p", "3", str(start_sector), str(end_sector), "w"]
     subprocess.run(
         ["/usr/bin/env", "fdisk", dev_path],
         # fdisk might return ioctl failed to apply.
