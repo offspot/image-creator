@@ -268,7 +268,7 @@ def resize_third_partition(dev_path: str):
 
     # check fs on 3rd part
     subprocess.run(
-        ["/usr/bin/env", "e2fsck", "-p", f"{dev_path}p3"],
+        ["/usr/bin/env", "e2fsck", "-f", "-p", f"{dev_path}p3"],
         check=True,
         capture_output=only_on_debug,
         text=True,
