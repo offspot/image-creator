@@ -17,21 +17,20 @@ kernel features:
 
 tools:
     - losetup (mount)
-    - fdisk (fdisk)
+    - parted (parted)
     - resize2fs (e2fsprogs)
     - mount (mount)
     - umount (mount)
     - qemu-img (qemu-utils)
     - partprobe (parted)
-    - lsblk (util-linux)
     - mknod (coreutils)
     - dmsetup (dmsetup)
 
 Sample setup (debian)
 sudo modprobe --first-time loop
 sudo modprobe --first-time ext4
-sudo apt-get install --no-install-recommends coreutils util-linux dmsetup \
-                                             mount fdisk e2fsprogs qemu-utils parted
+sudo apt-get install --no-install-recommends coreutils dmsetup \
+                                             mount e2fsprogs qemu-utils parted
 """
 
 
@@ -55,10 +54,8 @@ def has_all_binaries() -> tuple[bool, list[str]]:
     missing_bin_retcode = 127
     for binary in (
         "dmsetup",
-        "e2fsck",
-        "fdisk",
+        "fsck.ext4",
         "losetup",
-        "lsblk",
         "mknod",
         "mount",
         "partprobe",

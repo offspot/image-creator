@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import pathlib
 import re
 import subprocess
 import tempfile
+import time
 
 from offspot_config.utils.misc import get_environ, rmtree
 
@@ -16,6 +18,19 @@ logger = logging.getLogger("image-debug")
 if Global.debug:
     logger.setLevel(logging.DEBUG)
 only_on_debug: bool = not Global.debug
+
+
+def flush_writes():
+    """call sync to ensure all writes are commited to disks"""
+
+    os.sync()
+    subprocess.run(
+        ["/usr/bin/env", "sync", "-f"],
+        check=True,
+        capture_output=only_on_debug,
+        text=True,
+        env=get_environ(),
+    )
 
 
 def get_image_size(fpath: pathlib.Path) -> int:
@@ -73,6 +88,11 @@ def is_loopdev_free(loop_dev: str):
     return loop_dev not in [device["name"] for device in devices]
 
 
+def get_loop_name(loop_dev: str) -> str:
+    """name of loop from loop_dev (/dev/loopX -> loopX)"""
+    return str(pathlib.Path(loop_dev).relative_to(pathlib.Path("/dev")))
+
+
 def create_block_special_device(dev_path: str, major: int, minor: int):
     """create a special block device (for partitions, inside docker)"""
     logger.debug(f"Create mknod for {dev_path} with {major=} {minor=}")
@@ -98,27 +118,16 @@ def attach_to_device(img_fpath: pathlib.Path, loop_dev: str):
     # create nodes for partitions if not present (typically when run in docker)
     if not pathlib.Path(f"{loop_dev}p1").exists():
         logger.debug(f"Missing {loop_dev}p1 on fs")
-        for index, part_line in enumerate(
-            subprocess.run(
-                [
-                    "/usr/bin/env",
-                    "lsblk",
-                    "--raw",
-                    "--output",
-                    "MAJ:MIN",
-                    "--noheadings",
-                    loop_dev,
-                ],
-                check=True,
-                capture_output=True,
-                text=True,
-                env=get_environ(),
-            ).stdout.splitlines()[1:]
-        ):
-            logger.debug(f"  {part_line=}")
-            major, minor = part_line.strip().split(":", 1)
+        loop_name = get_loop_name(loop_dev)
+        loop_block_dir = pathlib.Path("/sys/block/") / loop_name
+
+        if not loop_block_dir.exists():
+            raise OSError(f"{loop_block_dir} does not exists")
+        for part_dev_file in loop_block_dir.rglob(f"{loop_name}p*/dev"):
+            part_path = pathlib.Path(loop_dev).with_name(part_dev_file.parent.name)
+            major, minor = part_dev_file.read_text().strip().split(":", 1)
             create_block_special_device(
-                dev_path=f"{loop_dev}p{index + 1}", major=int(major), minor=int(minor)
+                dev_path=str(part_path), major=int(major), minor=int(minor)
             )
     else:
         logger.debug(f"Found {loop_dev}p1 on fs")
@@ -149,39 +158,15 @@ def detach_device(loop_dev: str, *, failsafe: bool = False) -> bool:
 
 def get_device_sectors(dev_path: str) -> int:
     """number of sectors composing this device"""
-    summary_re = re.compile(
-        rf"^Disk {dev_path}: (?P<size>[\d\.\s]+ [KMGP]iB+), "
-        r"(?P<bytes>\d+) bytes, (?P<sectors>\d+) sectors$"
-    )
-    line = subprocess.run(
-        ["/usr/bin/env", "fdisk", "--list", dev_path],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=get_environ(),
-    ).stdout.splitlines()[0]
-    match = summary_re.match(line)
-    if match:
-        return int(match.groupdict()["sectors"])
-    raise ValueError(f"Unable to get nb of sectors for {dev_path}")
+
+    dev_name = get_loop_name(dev_path)
+    return int(pathlib.Path(f"/sys/block/{dev_name}/size").read_text())
 
 
 def get_thirdpart_start_sector(dev_path) -> int:
     """Start sector number of third partition of device"""
-    part_re = re.compile(
-        rf"{dev_path}p3      (?P<start>\d+) (?P<end>\d+)  (?P<nb>\d+) .+$"
-    )
-    line = subprocess.run(
-        ["/usr/bin/env", "fdisk", "--list", dev_path],
-        check=True,
-        capture_output=True,
-        text=True,
-        env=get_environ(),
-    ).stdout.splitlines()[-1]
-    match = part_re.match(line)
-    if match:
-        return int(match.groupdict()["start"])
-    raise ValueError(f"Unable to get start sector for {dev_path}p3")
+    dev_name = get_loop_name(dev_path)
+    return int(pathlib.Path(f"/sys/block/{dev_name}/{dev_name}p3/start").read_text())
 
 
 def check_third_partition_device(dev_path: str):
@@ -221,6 +206,7 @@ def check_third_partition_device(dev_path: str):
 
     logger.debug(f"Dettaching {dev_path}")
     detach_device(loop_dev=dev_path)
+    time.sleep(2)  # necessary to prevent device busy error
     logger.debug(f"Attaching {dev_path} to {image_path}")
     attach_to_device(img_fpath=pathlib.Path(image_path), loop_dev=dev_path)
 
@@ -228,27 +214,31 @@ def check_third_partition_device(dev_path: str):
 def resize_third_partition(dev_path: str):
     """recreate third partition of a device and its (ext4!) filesystem"""
     nb_sectors = get_device_sectors(dev_path)
-    start_sector = get_thirdpart_start_sector(dev_path)
     end_sector = nb_sectors - 1
 
-    # delete 3rd part and recreate from same sector until end of device
-    commands = ["d", "3", "n", "p", "3", str(start_sector), str(end_sector), "w"]
+    # grow third (last) part to end of device
     subprocess.run(
-        ["/usr/bin/env", "fdisk", dev_path],
-        # fdisk might return ioctl failed to apply.
-        # not much of an issue. in this case partprobe should help
-        check=False,
-        input="\n".join(commands),
+        [
+            "/usr/bin/env",
+            "parted",
+            "-m",
+            dev_path,
+            "unit",
+            "s",
+            "resizepart",
+            "3",
+            str(end_sector),
+        ],
+        check=True,
         capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
-    logger.debug(f"fdisk suceeded in deleting/recreating 3rd part of {dev_path}")
+    logger.debug(f"parted succeeded in resizing 3rd part of {dev_path}")
 
     subprocess.run(
         ["/usr/bin/env", "partprobe", "--summary", dev_path],
         check=True,
-        input="\n".join(commands),
         capture_output=only_on_debug,
         text=True,
         env=get_environ(),
@@ -265,14 +255,14 @@ def resize_third_partition(dev_path: str):
 
     # check fs on 3rd part
     subprocess.run(
-        ["/usr/bin/env", "e2fsck", "-f", "-p", f"{dev_path}p3"],
+        ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", f"{dev_path}p3"],
         check=True,
         capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
 
-    logger.debug(f"e2fsck of {dev_path}p3 succeeded")
+    logger.debug(f"fsck.ext4 of {dev_path}p3 succeeded")
 
     # resize fs on 3rd part
     subprocess.run(
@@ -284,6 +274,17 @@ def resize_third_partition(dev_path: str):
     )
 
     logger.debug(f"resize2fs of {dev_path}p3 succeeded")
+
+    # check fs on 3rd part
+    subprocess.run(
+        ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", f"{dev_path}p3"],
+        check=True,
+        capture_output=only_on_debug,
+        text=True,
+        env=get_environ(),
+    )
+
+    logger.debug(f"fsck.ext4(2) of {dev_path}p3 succeeded")
 
 
 def mount_on(dev_path: str, mount_point: pathlib.Path, filesystem: str | None) -> bool:
@@ -306,6 +307,7 @@ def mount_on(dev_path: str, mount_point: pathlib.Path, filesystem: str | None) -
 
 def unmount(mount_point: pathlib.Path) -> bool:
     """whether unmounting mount-point succeeded"""
+    flush_writes()
     return (
         subprocess.run(
             ["/usr/bin/env", "umount", str(mount_point)],
