@@ -7,10 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- Support for `shrink` option in `output` (#21)
-
 ### Changed
 
 - third-party commands (image) output displayed on --debug

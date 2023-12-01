@@ -19,7 +19,6 @@ from image_creator.steps.image import (
     MountingBootPart,
     MountingDataPart,
     ResizingImage,
-    ShrinkingImage,
     UnmountingBootPart,
     UnmountingDataPart,
 )
@@ -51,7 +50,6 @@ class StepMachine:
         WritingOffspotConfig,
         UnmountingBootPart,
         DetachingImage,
-        ShrinkingImage,
         GivingFeedback,
     ]
 

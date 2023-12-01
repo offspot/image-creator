@@ -36,12 +36,9 @@ def get_image_size(fpath: pathlib.Path) -> int:
     return -1
 
 
-def resize_image(fpath: pathlib.Path, size: int, *, shrink: bool):
+def resize_image(fpath: pathlib.Path, size: int):
     """Resize virtual device in image (bytes)"""
-    command = ["/usr/bin/env", "qemu-img", "resize"]
-    if shrink:
-        command += ["--shrink"]
-    command += ["-f", "raw", fpath, str(size)]
+    command = ["/usr/bin/env", "qemu-img", "resize", "-f", "raw", fpath, str(size)]
     subprocess.run(
         command,
         check=True,
@@ -368,9 +365,9 @@ class Image:
             return True
         return False
 
-    def resize(self, to: int, *, shrink: bool):
+    def resize(self, to: int):
         """resize virtual device inside image (expand only)"""
-        resize_image(self.fpath, size=to, shrink=shrink)
+        resize_image(self.fpath, size=to)
 
     def resize_last_part(self):
         """resize 3rd partition and filesystem to use all remaining space"""

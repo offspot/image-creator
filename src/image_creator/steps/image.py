@@ -25,7 +25,7 @@ class ResizingImage(Step):
 
         logger.start_task(f"Resizing image to {format_size(payload['output_size'])}…")
         try:
-            payload["image"].resize(payload["output_size"], shrink=False)
+            payload["image"].resize(payload["output_size"])
         except Exception as exc:
             logger.fail_task(str(exc))
             return 1
@@ -145,25 +145,4 @@ class DetachingImage(Step):
         else:
             logger.succeed_task()
 
-        return 0
-
-
-class ShrinkingImage(Step):
-    _name = "Shrinking image"
-
-    def run(self, payload: dict[str, Any]) -> int:
-        if not payload["config"].output.shrink:
-            return 0
-        logger.start_task("Shrinking image file…")
-        if payload["min_image_size"] >= payload["image"].get_size():
-            logger.end_task(message="cannot be shrunk")
-            return 0
-
-        try:
-            payload["image"].resize(payload["min_image_size"], shrink=True)
-        except Exception as exc:
-            logger.fail_task(str(exc))
-            return 1
-        else:
-            logger.succeed_task(format_size(payload["image"].get_size()))
         return 0
