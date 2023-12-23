@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Always check third part before resize2fs (even if it appears clean)
 - using parted instead of fdisk
 - querying kernel for partition sizes (removed lsblk dependency)
+- using offspot-config 1.5.0
 
 ## [0.6] - 2023-10-20
 
