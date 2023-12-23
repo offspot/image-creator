@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Create special devices for partitions if not exists (not only if fdisk failed)
 - Removed extra (ignored) command to fdisk on part3 recreate
 - Always check third part before resize2fs (even if it appears clean)
+- using parted instead of fdisk
+- querying kernel for partition sizes (removed lsblk dependency)
 
 ## [0.6] - 2023-10-20
 
