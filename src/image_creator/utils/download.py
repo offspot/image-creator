@@ -21,7 +21,7 @@ def download_file(
     url: str,
     to: pathlib.Path | io.BytesIO,
     *,
-    block_size: int | None = 1024,
+    block_size: int | None = 4194304,  # 4MiB
     proxies: dict | None = None,
     only_first_block: bool = False,
     headers: dict[str, str] | None = None,
