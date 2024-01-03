@@ -3,6 +3,7 @@ from __future__ import annotations
 import pathlib
 import shutil
 import tempfile
+import time
 from collections import OrderedDict
 from collections.abc import Callable
 from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
@@ -84,12 +85,16 @@ class MultiDownloadProgressBar:
             max_value=dl_progress.bytes_total, widgets=widgets
         )
         self.dl_progress = dl_progress
+        self.updated_on = int(time.time())
 
     def update(self):
+        if int(time.time()) == self.updated_on:
+            return
         self.bar.update(
             # make sure we don't update bar above 100% (will not work)
             min([self.dl_progress.bytes_received, self.dl_progress.bytes_total])
         )
+        self.updated_on = int(time.time())
 
     def finish(self):
         self.bar.finish()
