@@ -22,10 +22,10 @@ dependencies = [
     "PyYAML==6.0.1",
     "cli-ui==0.17.2",
     "humanfriendly==10.0",
-    "progressbar2==4.2.0",
+    "progressbar2==4.3.2",
     "docker_export==1.0.1",
     "typeguard==4.1.5",
-    "offspot-config==1.5.0",
+    "offspot-config==1.5.2",
 ]
 dynamic = ["version"]
 
@@ -34,24 +34,24 @@ scripts = [
   "invoke==2.2.0",
 ]
 lint = [
-  "black==23.9.1",
-  "ruff==0.0.292",
+  "black==23.12.1",
+  "ruff==0.1.11",
 ]
 check = [
-  "pyright==1.1.333",
+  "pyright==1.1.344",
 ]
 test = [
-  "pytest==7.4.2",
+  "pytest==7.4.4",
   "pytest-cov==4.1.0",
-  "coverage==7.3.2",
+  "coverage==7.4.0",
 ]
 binary = [
   "ordered-set==4.1.0",
-  "zstandard==0.21.0",
-  "nuitka==1.8.4",
+  "zstandard==0.22.0",
+  "nuitka==1.9.6",
 ]
 dev = [
-  "pre-commit==3.4.0",
+  "pre-commit==3.6.0",
   "image-creator[scripts]",
   "image-creator[lint]",
   "image-creator[test]",

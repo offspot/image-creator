@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Use a larger buffer to download (4MiB per download)
 - Update download progressbar at most once per second
+- Updated dev/build dependencies (building with nuikta 1.9)
 
 ## [0.7] - 2023-12-23
 
