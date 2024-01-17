@@ -118,7 +118,9 @@ class Policy:  # CommonParamsMixin
             ) from exc
 
     def parse_check_after(self):
-        if self.check_after is None or (isinstance(self.check_after, int) and self.check_after >= 0):
+        if self.check_after is None or (
+            isinstance(self.check_after, int) and self.check_after >= 0
+        ):
             return
         elif isinstance(self.check_after, int):
             raise ValueError(
