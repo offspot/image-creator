@@ -143,18 +143,21 @@ _Only define the properties you want_. Everything's optionnal. Sub-levels are bo
 | `max_size`               | `size`     | `10GiB`   | Overalll maximum size for cache. `0` disables                                                 |
 | `max_age`                | `duration` |           | Duration after which an entry should be evicted (from added-date)                             |
 | `max_num`                | `int`      |           | Max number of items to keep in cache. `0` disables                                            |
+| `check_after`            | `duration` |           | Duration during which an entry should not be checked for outdacy                              |
 | `eviction`               | `string`   | `lru`     | Main eviction Strategy. One of `oldest`, `newest`, `largest`, `smallest`, `lru`               |
 | `oci_images`             | `dict`     |           | OCI-Images specific cache configuration                                                       |
 | `oci_images.enabled`     | `bool`     | `true`    | If `false`, no OCI Image is cached.                                                           |
 | `oci_images.max_size`    | `size`     |           | Size of the OCI-Images cache. Must fit witin main cache size                                  |
 | `oci_images.max_age`     | `duration` |           | Duration after which an OCI Image should be evicted                                           |
 | `oci_images.max_num`     | `int`      |           | Max number of OCI-Images to keep in cache.                                                    |
+| `oci_images.check_after` | `duration` |           | Duration during which an entry should not be checked for outdacy                              |
 | `oci_images.eviction`    | `string`   | `lru`     | OCI Images Eviction Strategy                                                                  |
 | `oci_images.filters`     | `list`     |           | Patterns to override config for. First matched is applied. Options applies to all matched     |
 | **`.filters[].pattern`** | `string`   |           | Regexp to match OCI Image identifier. ex: `\/kiwix\/`                                         |
 | `.filters[].max_size`    | `size`     |           | Max total size of cache for entries of this pattern                                           |
 | `.filters[].max_age`     | `duration` |           | Duration after which entries of this pattern should be evicted                                |
 | `.filters[].max_num`     | `int`      |           | Max number of cache entries for this pattern                                                  |
+| `.filters[].check_after` | `duration` |           | Duration during which an entry should not be checked for outdacy                              |
 | `.filters[].eviction`    | `string`   | `lru`     | Eviction strategy for cache entries of this pattern                                           |
 | `.filters[].ignore`      | `bool`     | `false`   | Don't cache entries of this pattern                                                           |
 | `files`                  | `dict`     |           | Files (content and base image) specific cache configuration                                   |
@@ -162,12 +165,14 @@ _Only define the properties you want_. Everything's optionnal. Sub-levels are bo
 | `files.max_size`         | `size`     |           | Size of the Files/base cache. Must fit witin main cache size                                  |
 | `files.max_age`          | `duration` |           | Duration after which Files/base should be evicted                                             |
 | `files.max_num`          | `int`      |           | Max number of files/base to keep in cache.                                                    |
+| `files.check_after`      | `duration` |           | Duration during which an entry should not be checked for outdacy                              |
 | `files.eviction`         | `string`   | `lru`     | Files Eviction Strategy                                                                       |
 | `files.filters`          | `list`     |           | Patterns to override config for. First matched is applied. Options applies to all matched     |
 | **`.filters[].pattern`** | `string`   |           | Regexp to match Files URLs. ex: `https?\/\/download\.kiwix\.org\/zim\/`                       |
 | `.filters[].max_size`    | `size`     |           | Max total size of cache for entries of this pattern                                           |
 | `.filters[].max_age`     | `duration` |           | Duration after which entries of this pattern should be evicted                                |
 | `.filters[].max_num`     | `int`      |           | Max number of cache entries for this pattern                                                  |
+| `.filters[].check_after` | `duration` |           | Duration during which an entry should not be checked for outdacy                              |
 | `.filters[].eviction`    | `string`   |           | Eviction strategy for cache entries of this pattern                                           |
 | `.filters[].ignore`      | `bool`     | `false`   | Don't cache entries of this pattern                                                           |
 

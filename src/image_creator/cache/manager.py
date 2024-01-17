@@ -107,10 +107,16 @@ class CacheEntry:
         self.size = get_filesize(self.fpath)
         metadata = SimpleAttrs(self.fpath)
         self.added_on = datetime.datetime.fromisoformat(metadata["added_on"])
+        self.last_checked_on = (
+            datetime.datetime.fromisoformat(metadata["last_checked_on"])
+            if "last_checked_on" in metadata
+            else self.added_on
+        )
         self.last_used_on = datetime.datetime.fromisoformat(metadata["last_used_on"])
         self.nb_used = int(metadata["nb_used"])
         self.kind, self.source = metadata["source"].split(":", 1)
         self.digest = metadata["digest"]
+        self.check_after: int | None = None
 
     def __repr__(self):
         return f"{type(self).__name__}(fpath={self.fpath}, self.source={self.source})"
@@ -125,9 +131,27 @@ class CacheEntry:
 
     @property
     def is_outdated(self):
+        # force checking outdacy
+        return self.is_outdated_if(checked_before=0)
+
+    def is_outdated_if(self, checked_before: int | None = None):
         r"""whether remote resource got updated (has different digest)
 
-        /!\ digest-less URLs are considered outdated, always"""
+        Accounts for `checked_before`: number of seconds to consider a checked
+        file not needing another check.
+
+        /!\ digest-less URLs are always considered outdated, when checked"""
+        if checked_before is None:
+            checked_before = self.check_after
+
+        # consider not outdated if within policy's check bound
+        if (
+            checked_before
+            and self.last_checked_on + datetime.timedelta(seconds=checked_before)
+            >= datetime.datetime.utcnow()
+        ):
+            return False
+
         if not self.digest:
             return True
         try:
@@ -135,12 +159,25 @@ class CacheEntry:
         except Exception as exc:
             logger.exception(OSError(f"failed to retrieve remote digest: {exc}"))
             return False
-        return not remote or remote != self.digest
+
+        outdated = not remote or remote != self.digest
+        # outdated are not marked as checked to prevent caching a result
+        # that should already be evicted but might not have been
+        if not outdated:
+            self.mark_checked()
+        return outdated
+
+    def mark_checked(self):
+        self.last_checked_on = datetime.datetime.utcnow()
+        metadata = SimpleAttrs(self.fpath)
+        metadata["last_checked_on"] = self.last_checked_on.isoformat()
 
     def mark_usage(self, num: int = 1):
+        self.nb_used += num
+        self.last_used_on = datetime.datetime.utcnow()
         metadata = SimpleAttrs(self.fpath)
-        metadata["nb_used"] = str(self.nb_used + num)
-        metadata["last_used_on"] = datetime.datetime.utcnow().isoformat()
+        metadata["nb_used"] = str(self.nb_used)
+        metadata["last_used_on"] = self.last_used_on.isoformat()
 
     __iadd__ = mark_usage
 
@@ -184,6 +221,10 @@ def get_eviction_for(
                 if not filter_.match(entry.source):
                     continue
 
+                # apply filter check_after to entry
+                if filter_.check_after is not None:
+                    entry.check_after = filter_.check_after
+
                 # if ignore is set, we should not cache at all
                 if filter_.ignore:
                     evictions.append((entry, f"ignored pattern {filter_.pattern}"))
@@ -223,6 +264,9 @@ def get_eviction_for(
 
     # applying policy-level boundaries
     for entry in sort_for(policy.eviction, entries):
+        if policy.check_after is not None:
+            entry.check_after = policy.check_after
+
         if entry.kind == "file" and not is_http(entry.source):
             evictions.append((entry, "Source protocol not cacheable"))
             continue
@@ -354,6 +398,7 @@ class CacheManager(dict):
 
         metadata = {}
         metadata["added_on"] = entry.added_on.isoformat()
+        metadata["last_checked_on"] = entry.last_checked_on.isoformat()
         metadata["last_used_on"] = entry.last_used_on.isoformat()
         metadata["nb_used"] = "1"
         metadata["source"] = f"{entry.kind}:{entry.source}"
@@ -469,7 +514,7 @@ class CacheManager(dict):
         evicted = []
         reason = "outdated"
         for entry in list(self.entries.values()):
-            if entry.is_outdated:
+            if entry.is_outdated_if():
                 evicted.append((entry, reason, self.evict(entry, reason)))
         return evicted
 

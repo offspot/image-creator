@@ -50,6 +50,7 @@ class Policy:  # CommonParamsMixin
     max_size: int | str | None = None
     max_age: int | str | None = None
     max_num: int | None = None
+    check_after: int | None = None
     eviction: str = Global.default_eviction
 
     @property
@@ -116,6 +117,22 @@ class Policy:  # CommonParamsMixin
                 f"for {type(self).__name__}.max_age ({exc})"
             ) from exc
 
+    def parse_check_after(self):
+        if self.check_after is None or (isinstance(self.check_after, int) and self.check_after >= 0):
+            return
+        elif isinstance(self.check_after, int):
+            raise ValueError(
+                f"Invalid negative value `{self.check_after}` "
+                f"for {type(self).__name__}.check_after"
+            )
+        try:
+            self.check_after = parse_duration(self.check_after)
+        except Exception as exc:
+            raise ValueError(
+                f"Unable to parse `{self.check_after}` into duration "
+                f"for {type(self).__name__}.check_after ({exc})"
+            ) from exc
+
     def enforce_eviction(self):
         if self.eviction not in Eviction.get_all():
             raise ValueError(
@@ -130,6 +147,7 @@ class Policy:  # CommonParamsMixin
         self.enforce_eviction()
         self.parse_max_size()
         self.parse_max_age()
+        self.parse_check_after()
 
 
 @typechecked
