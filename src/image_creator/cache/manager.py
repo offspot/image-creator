@@ -193,7 +193,9 @@ class CacheCandidate(CacheEntry):
         self.fpath = path_for_item(item)
         self.digest = digest_for_item(item)
         self.nb_used = 0
-        self.added_on = self.last_used_on = added_on or datetime.datetime.utcnow()
+        self.added_on = self.last_checked_on = self.last_used_on = (
+            added_on or datetime.datetime.utcnow()
+        )
 
 
 def get_eviction_for(
