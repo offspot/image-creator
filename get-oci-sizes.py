@@ -83,7 +83,14 @@ def download_image(name: str) -> pathlib.Path:
     """download image to a tar file using docker-export"""
     fs_name = pathlib.Path(f"{pathlib.Path(name.replace('/', '_'))}.tar")
     subprocess.run(
-        ["/usr/bin/env", "docker-export", name, str(fs_name)],
+        [
+            "/usr/bin/env",
+            "docker-export",
+            "--platform",
+            "linux/arm64",
+            name,
+            str(fs_name),
+        ],
         check=True,
         capture_output=True,
     )
