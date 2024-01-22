@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `check_after` Cache Policy property to mark a cache entry _not outdated_ for a period of time
 - `keep_identified_versions` Cache Policy property to evict older version of identified ZIMs and Images
 
+### Changed
+
+- `pattern` matching in Cache Policy now uses `re.findall` for simpler regexp matching
+
 ## [0.8] - 2024-01-03
 
 ### Changed

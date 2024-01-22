@@ -155,7 +155,7 @@ _Only define the properties you want_. Everything's optionnal. Sub-levels are bo
 | `oci_images.keep_identified_versions` | `int`      |           | Number of *identified* version to keep per image (see below)                                  |
 | `oci_images.eviction`                 | `string`   | `lru`     | OCI Images Eviction Strategy                                                                  |
 | `oci_images.filters`                  | `list`     |           | Patterns to override config for. First matched is applied. Options applies to all matched     |
-| **`.filters[].pattern`**              | `string`   |           | Regexp to match OCI Image identifier. ex: `\/kiwix\/`                                         |
+| **`.filters[].pattern`**              | `string`   |           | Regexp to match OCI Image identifier. ex: `/kiwix/`                                           |
 | `.filters[].max_size`                 | `size`     |           | Max total size of cache for entries of this pattern                                           |
 | `.filters[].max_age`                  | `duration` |           | Duration after which entries of this pattern should be evicted                                |
 | `.filters[].max_num`                  | `int`      |           | Max number of cache entries for this pattern                                                  |
@@ -172,7 +172,7 @@ _Only define the properties you want_. Everything's optionnal. Sub-levels are bo
 | `files.keep_identified_versions`      | `int`      |           | Number of *identified* version to keep per file (see below)                                   |
 | `files.eviction`                      | `string`   | `lru`     | Files Eviction Strategy                                                                       |
 | `files.filters`                       | `list`     |           | Patterns to override config for. First matched is applied. Options applies to all matched     |
-| **`.filters[].pattern`**              | `string`   |           | Regexp to match Files URLs. ex: `https?\/\/download\.kiwix\.org\/zim\/`                       |
+| **`.filters[].pattern`**              | `string`   |           | Regexp to match Files URLs. ex: `^https?//download.kiwix.org/zim/`                            |
 | `.filters[].max_size`                 | `size`     |           | Max total size of cache for entries of this pattern                                           |
 | `.filters[].max_age`                  | `duration` |           | Duration after which entries of this pattern should be evicted                                |
 | `.filters[].max_num`                  | `int`      |           | Max number of cache entries for this pattern                                                  |

@@ -160,7 +160,7 @@ class SubPolicyFilter(Policy):
     ignore: bool | None = False
 
     def match(self, value: str):
-        return re.match(self.pattern, value, re.IGNORECASE)
+        return bool(re.findall(self.pattern, value, re.IGNORECASE))
 
 
 @dataclass()
