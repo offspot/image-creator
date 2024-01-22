@@ -135,7 +135,7 @@ As `image-creator` mostly moves content from remote locations into an image file
 
 The cache is optional and set to a particular directory using `--cache-dir` option. The cache is flexible and configurable via a `policy.yaml` file inside of it. A default cache-policy is created if not present.
 
-_Only define the properties you want_. Everything's optionnal. Sub-levels are bound by upper level. If you define a filter, a **`pattern`** is mandatory.
+_Only define the properties you want_. Everything's optionnal. Sub-levels are bound by upper level. If you define a filter, a **`pattern`** is mandatory. First matching filter is applied.
 
 | Key                                   | Kind       | Default   | Function                                                                                      |
 |---------------------------------------|------------|-----------|-----------------------------------------------------------------------------------------------|

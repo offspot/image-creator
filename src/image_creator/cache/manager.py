@@ -265,8 +265,11 @@ def get_eviction_for(
 
             for entry in sort_for(filter_.eviction, entries):
                 # dont look at this filter policy if entry doesnt match
-                if not filter_.match(entry.source):
+                if not filter_.match(entry.source) or getattr(entry, "__seen", False):
                     continue
+
+                # mark seen so first matching filter only applies
+                setattr(entry, "__seen", True)
 
                 # apply filter check_after to entry
                 if filter_.check_after is not None:
