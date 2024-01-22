@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import collections
 import datetime
 import pathlib
+import re
 from collections.abc import Iterable
 
+from natsort import natsorted
 from offspot_config.inputs import File
 from offspot_config.oci_images import OCIImage
 from offspot_config.utils.misc import (
@@ -27,6 +30,10 @@ from image_creator.constants import Global, logger
 from image_creator.utils.download import get_digest
 
 Item = File | OCIImage
+
+# version regexp from filename's stem for images and files
+RE_OCI_VERSIONED = re.compile(r"^(?P<ident>.+):(?P<version>.+)$")
+RE_FILES_VERSIONED = re.compile(r"^(?P<ident>.+)_(?P<version>\d{4}-\d{2}).zim$")
 
 
 def path_for_item(item: Item) -> pathlib.Path:
@@ -213,10 +220,48 @@ def get_eviction_for(
     total_num = 0
     total_size = 0
 
+    idv = collections.namedtuple("Identified", ["ident", "version"])
+
+    def matched_ident_version(entry: CacheEntry) -> idv | None:
+        """ident and version from entry if it was identified as versioned (or None)"""
+        if isinstance(policy, OCIImagePolicy):
+            re_version = RE_OCI_VERSIONED
+        if isinstance(policy, FilesPolicy):
+            re_version = RE_FILES_VERSIONED
+        if isinstance(policy, OCIImagePolicy | FilesPolicy):
+            version_match = re_version.match(  # pyright: ignore [reportUnboundVariable]
+                entry.fpath.name
+            )
+            if version_match:
+                return idv(
+                    version_match.groupdict()["ident"],
+                    version_match.groupdict()["version"],
+                )
+            return
+        # we're at main policy
+        oci_version_match = RE_OCI_VERSIONED.match(entry.fpath.name)
+        if oci_version_match:
+            return idv(
+                oci_version_match.groupdict()["ident"],
+                oci_version_match.groupdict()["version"],
+            )
+        files_version_match = RE_FILES_VERSIONED.match(entry.fpath.name)
+        if files_version_match:
+            return idv(
+                files_version_match.groupdict()["ident"],
+                files_version_match.groupdict()["version"],
+            )
+        return
+
     if hasattr(policy, "filters"):
-        for filter_ in policy.filters:  # pyright: ignore[reportGeneralTypeIssues]
+        for (
+            filter_
+        ) in (
+            policy.filters  # pyright: ignore [reportAttributeAccessIssue, reportGeneralTypeIssues]
+        ):
             filter_num = 0
             filter_size = 0
+            filter_versioned_entries = {}
 
             for entry in sort_for(filter_.eviction, entries):
                 # dont look at this filter policy if entry doesnt match
@@ -261,8 +306,43 @@ def get_eviction_for(
                     )
                     continue
 
+                # if filter requested version numbers, keep a list of candidates
+                # for each individual item with said number
+                if filter_.keep_identified_versions:
+                    found = matched_ident_version(entry)
+                    if found and found.ident not in filter_versioned_entries:
+                        filter_versioned_entries[found.ident] = {
+                            "num": filter_.keep_identified_versions,
+                            "entries": [],
+                        }
+                    if found:
+                        filter_versioned_entries[found.ident]["entries"].append(entry)
+
                 filter_size += entry.size
                 filter_num += 1
+
+            # for each identified version, keep only requested number
+            if filter_.keep_identified_versions:
+                for item in filter_versioned_entries.values():
+                    # dont bother if we dont have enough entries to remove any
+                    if not item["num"] or len(item["entries"]) <= item["num"]:
+                        continue
+                    # sort (naturally) by version (from filename)
+                    for obsolete in natsorted(
+                        item["entries"],
+                        key=lambda item: matched_ident_version(
+                            item
+                        ).version,  # pyright: ignore [reportOptionalMemberAccess]
+                    )[: -filter_.keep_identified_versions]:
+                        evictions.append(
+                            (
+                                obsolete,
+                                "Version now obsolete (keeping "
+                                f"only {filter_.keep_identified_versions})",
+                            )
+                        )
+
+    total_versioned_entries = {}
 
     # applying policy-level boundaries
     for entry in sort_for(policy.eviction, entries):
@@ -303,8 +383,41 @@ def get_eviction_for(
             )
             continue
 
+        # if filter requested version numbers, keep a list of candidates
+        # for each individual item with said number
+        if policy.keep_identified_versions:
+            found = matched_ident_version(entry)
+            if found and found.ident not in total_versioned_entries:
+                total_versioned_entries[found.ident] = {
+                    "num": policy.keep_identified_versions,
+                    "entries": [],
+                }
+            if found:
+                total_versioned_entries[found.ident]["entries"].append(entry)
+
         total_size += entry.size
         total_num += 1
+
+    # for each identified version, keep only requested number
+    if policy.keep_identified_versions:
+        for item in total_versioned_entries.values():
+            # dont bother if we dont have enough entries to remove any
+            if not item["num"] or len(item["entries"]) <= item["num"]:
+                continue
+            # sort (naturally) by version (from filename)
+            for obsolete in natsorted(
+                item["entries"],
+                key=lambda item: matched_ident_version(
+                    item
+                ).version,  # pyright: ignore [reportOptionalMemberAccess]
+            )[: -policy.keep_identified_versions]:
+                evictions.append(
+                    (
+                        obsolete,
+                        "Version now obsolete (keeping "
+                        f"only {policy.keep_identified_versions})",
+                    )
+                )
 
     return evictions
 
@@ -537,7 +650,7 @@ class CacheManager(dict):
 
         self.considered = True
 
-    def print(self, *, with_evictions: bool = False):  # noqa: A003
+    def print(self, *, with_evictions: bool = False):
         """print content of cache"""
         if not self.discovered:
             self.walk()

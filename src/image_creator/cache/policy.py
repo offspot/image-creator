@@ -51,6 +51,7 @@ class Policy:  # CommonParamsMixin
     max_age: int | str | None = None
     max_num: int | None = None
     check_after: int | None = None
+    keep_identified_versions: int | None = None
     eviction: str = Global.default_eviction
 
     @property
