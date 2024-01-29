@@ -206,7 +206,9 @@ class CacheCandidate(CacheEntry):
 
 
 def get_eviction_for(
-    entries: list[CacheEntry], policy: Policy | OCIImagePolicy | FilesPolicy
+    entries: list[CacheEntry],
+    policy: Policy | OCIImagePolicy | FilesPolicy,
+    root: pathlib.Path,
 ) -> list[tuple[CacheEntry, str]]:
     """list of (entry, reason) from entries that are expired or outdated"""
     if (
@@ -224,13 +226,14 @@ def get_eviction_for(
 
     def matched_ident_version(entry: CacheEntry) -> idv | None:
         """ident and version from entry if it was identified as versioned (or None)"""
+        path_in_cache = entry.fpath.relative_to(root)
         if isinstance(policy, OCIImagePolicy):
             re_version = RE_OCI_VERSIONED
         if isinstance(policy, FilesPolicy):
             re_version = RE_FILES_VERSIONED
         if isinstance(policy, OCIImagePolicy | FilesPolicy):
             version_match = re_version.match(  # pyright: ignore [reportUnboundVariable]
-                entry.fpath.name
+                str(path_in_cache)
             )
             if version_match:
                 return idv(
@@ -239,13 +242,13 @@ def get_eviction_for(
                 )
             return
         # we're at main policy
-        oci_version_match = RE_OCI_VERSIONED.match(entry.fpath.name)
+        oci_version_match = RE_OCI_VERSIONED.match(str(path_in_cache))
         if oci_version_match:
             return idv(
                 oci_version_match.groupdict()["ident"],
                 oci_version_match.groupdict()["version"],
             )
-        files_version_match = RE_FILES_VERSIONED.match(entry.fpath.name)
+        files_version_match = RE_FILES_VERSIONED.match(str(path_in_cache))
         if files_version_match:
             return idv(
                 files_version_match.groupdict()["ident"],
@@ -595,6 +598,7 @@ class CacheManager(dict):
             evictions = get_eviction_for(
                 [entry for entry in entries if entry.kind == "image"],
                 self.policy.oci_images,
+                self.root,
             )
         else:
             evictions = []
@@ -603,10 +607,12 @@ class CacheManager(dict):
 
         if self.policy.files:
             evictions += get_eviction_for(
-                [entry for entry in entries if entry.kind == "file"], self.policy.files
+                [entry for entry in entries if entry.kind == "file"],
+                self.policy.files,
+                self.root,
             )
         entries = [entry for entry in entries if entry not in evictions]
-        evictions += get_eviction_for(entries, self.policy)
+        evictions += get_eviction_for(entries, self.policy, self.root)
 
         return list(set(evictions))
 
