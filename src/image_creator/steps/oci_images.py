@@ -4,7 +4,7 @@ import pathlib
 import shutil
 from typing import Any
 
-from docker_export import export
+from docker_export import export, get_export_filename
 from offspot_config.oci_images import OCIImage
 from offspot_config.utils.misc import copy_file, format_size, get_filesize, rmtree
 
@@ -35,7 +35,9 @@ class DownloadingOCIImages(Step):
             logger.succeed_task(images_dir)
 
         for image in payload["config"].all_images:
-            target = images_dir.joinpath(f"{image.oci.fs_name}.tar")
+            target = images_dir.joinpath(
+                get_export_filename(image=image.oci, platform=Global.platform)
+            )
             if image in payload["cache"]:
                 logger.start_task(f"Copying OCI Image {image} from cache…")
                 try:
