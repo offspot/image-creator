@@ -189,13 +189,11 @@ class SubPolicy(Policy):
 
 
 @typechecked
-class OCIImagePolicy(SubPolicy):
-    ...
+class OCIImagePolicy(SubPolicy): ...
 
 
 @typechecked
-class FilesPolicy(SubPolicy):
-    ...
+class FilesPolicy(SubPolicy): ...
 
 
 @typechecked
