@@ -53,7 +53,13 @@ class ComputeSizes(Step):
         )
         margin = get_margin_for(raw_content_size)
         min_image_size = round_for_cluster(
-            sum([payload["config"].base.rootfs_size, raw_content_size, margin])
+            max(
+                # if it contains only base image we must account for
+                # data part provisioning that's inside base image
+                # as we cannot shrink
+                payload["config"].base_file.fullsize,
+                sum([payload["config"].base.rootfs_size, raw_content_size, margin]),
+            )
         )
 
         logger.add_task("Computed Minimum Image Size", format_size(min_image_size))
