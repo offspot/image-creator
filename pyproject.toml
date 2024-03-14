@@ -22,11 +22,12 @@ dependencies = [
     "PyYAML==6.0.1",
     "cli-ui==0.17.2",
     "humanfriendly==10.0",
-    "progressbar2==4.3.2",
+    "progressbar2==4.4.2",
     "docker-export==1.1.0",
     "typeguard==4.1.5",
-    "offspot-config==1.7.2",
+    "offspot-config==1.12.2",
     "natsort==8.4.0",
+    "aria2p==0.12.0",
 ]
 dynamic = ["version"]
 

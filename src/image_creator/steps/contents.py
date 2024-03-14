@@ -1,13 +1,11 @@
 from __future__ import annotations
 
+import functools
 import pathlib
 import shutil
 import tempfile
 import time
-from collections import OrderedDict
 from collections.abc import Callable
-from concurrent.futures import CancelledError, Future, ThreadPoolExecutor
-from dataclasses import dataclass
 from typing import Any
 
 import progressbar  # type: ignore
@@ -24,217 +22,7 @@ from offspot_config.utils.misc import (
 from image_creator.cache.manager import CacheManager
 from image_creator.constants import logger
 from image_creator.steps import Step
-from image_creator.utils.download import download_file
-
-
-@dataclass
-class MultiDownloadProgress:
-    """Holds progress for multi-downloads"""
-
-    nb_total: int = 0
-    nb_completed: int = 0
-    bytes_total: int = 0
-    bytes_received: int = 0
-
-    def on_data(self, bytes_received: int):
-        self.bytes_received += bytes_received
-
-    @property
-    def nb_remaining(self) -> int:
-        return self.nb_total - self.nb_completed
-
-    @property
-    def bytes_remaining(self) -> int:
-        return self.bytes_total - self.bytes_received
-
-    def __str__(self) -> str:
-        if not self.nb_total:
-            return repr(self)
-
-        if not self.nb_remaining:
-            return f"{self.nb_completed} items completed"
-
-        return (
-            f"{self.nb_remaining} items accounting "
-            f"{format_size(self.bytes_remaining)} remaining"
-        )
-
-
-class MultiDownloadProgressBar:
-    """Custom progress bar tailored for MultiDownloadProgress
-
-    Displays as:
-
-    [Elapsed Time: 0:02:45] 1 MiB of 20 MiB downloaded|#####   |1 KiB/s (Time:  0:00:45)
-    """
-
-    def __init__(self, dl_progress: MultiDownloadProgress):
-        widgets = [
-            "[",
-            progressbar.Timer(),
-            "] ",
-            progressbar.DataSize(),
-            f" of {format_size(dl_progress.bytes_total)} downloaded",
-            progressbar.Bar(),
-            progressbar.AdaptiveTransferSpeed(),
-            " (",
-            progressbar.ETA(),
-            ")",
-        ]
-        self.bar = progressbar.ProgressBar(
-            max_value=dl_progress.bytes_total, widgets=widgets
-        )
-        self.dl_progress = dl_progress
-        self.updated_on = int(time.time())
-
-    def update(self):
-        if int(time.time()) == self.updated_on:
-            return
-        self.bar.update(
-            # make sure we don't update bar above 100% (will not work)
-            min([self.dl_progress.bytes_received, self.dl_progress.bytes_total])
-        )
-        self.updated_on = int(time.time())
-
-    def finish(self):
-        self.bar.finish()
-
-
-def download_file_worker(
-    file: File,
-    cache: CacheManager,
-    mount_point: pathlib.Path,
-    temp_dir: pathlib.Path,
-    on_data: Callable | None = None,
-):
-    """Downloads a File into its destination, unpacking if required"""
-    block_size = 2**20  # 1MiB
-
-    dest_path = file.mounted_to(mount_point)
-    ensure_dir(dest_path.parent)
-    ensure_dir(temp_dir)
-
-    if file.is_direct:
-        if file in cache:
-            copy_file(cache[file].fpath, dest_path)
-            cache[file] += 1
-        else:
-            download_file(
-                file.geturl(),
-                dest_path,
-                block_size=block_size,
-                on_data=on_data,
-            )
-            if cache.should_cache(file):
-                cache.introduce(file, dest_path)
-
-    else:
-        temp_path = pathlib.Path(
-            tempfile.NamedTemporaryFile(dir=temp_dir, suffix=f"_{dest_path.name}").name
-        )
-        if file in cache:
-            copy_file(cache[file].fpath, temp_path)
-            cache[file] += 1
-        else:
-            try:
-                download_file(
-                    url=file.geturl(),
-                    to=temp_path,
-                    block_size=block_size,
-                    on_data=on_data,
-                )
-            except Exception as exc:
-                temp_path.unlink(missing_ok=True)
-                raise exc
-            if cache.should_cache(file):
-                cache.introduce(file, temp_path)
-        try:
-            expand_file(src=temp_path, method=file.via, dest=dest_path)
-        except Exception as exc:
-            raise exc
-        finally:
-            temp_path.unlink(missing_ok=True)
-
-
-class FilesMultiDownloader:
-    """Downloads the File objects supplied using a ThreadPoolExecutor"""
-
-    def __init__(
-        self,
-        files,
-        cache: CacheManager,
-        mount_point: pathlib.Path,
-        temp_dir: pathlib.Path,
-        concurrency: int | None = None,
-        callback: Callable | None = None,
-        on_data: Callable | None = None,
-    ):
-        self.files = files
-        self.cache = cache
-        self.mount_point = mount_point
-        self.temp_dir = temp_dir
-
-        self.callback = callback
-        self.on_data = on_data
-        self.is_running = False
-        self.futures, self.cancelled, self.succeeded, self.failed = (
-            OrderedDict(),
-            OrderedDict(),
-            OrderedDict(),
-            OrderedDict(),
-        )
-        self.executor = ThreadPoolExecutor(max_workers=concurrency or None)
-
-    def notify_completion(self, future: Future):
-        """called once Future id done. Moves it to approp. list then callback()"""
-        if not future.done():
-            return
-        if future.cancelled():
-            self.cancelled[future] = self.futures.pop(future)
-            index = self.cancelled[future]
-        elif future.exception(0.1) is not None:
-            self.failed[future] = self.futures.pop(future)
-            index = self.failed[future]
-        else:
-            self.succeeded[future] = self.futures.pop(future)
-            index = self.succeeded[future]
-        if self.callback:
-            try:
-                self.callback(
-                    file=self.files[index],
-                    result=future.result(0.1),
-                    exc=future.exception(0.1),
-                )
-            except (CancelledError, TimeoutError):
-                ...
-
-        # break out downloads as we dont allow failures
-        if not self.futures:
-            self.is_running = False
-
-    def start(self):
-        """submit all files'workers to the executor"""
-        self.is_running = True
-        self.futures = {
-            self.executor.submit(
-                download_file_worker,
-                file,
-                self.cache,
-                self.mount_point,
-                self.temp_dir,
-                self.on_data,
-            ): index
-            for index, file in enumerate(self.files)
-        }
-        for future in list(self.futures.keys()):
-            future.add_done_callback(self.notify_completion)
-
-    def shutdown(self, *, now: bool = True):
-        if now or self.cancelled or self.failed:
-            self.executor.shutdown(wait=False, cancel_futures=True)
-        else:
-            self.executor.shutdown(wait=True)
-        self.is_running = False
+from image_creator.utils.aria2 import Download, Downloader, DownloadError, Feedback
 
 
 class ProcessingLocalContent(Step):
@@ -298,6 +86,199 @@ class ProcessingLocalContent(Step):
         return 0
 
 
+class InitDownloader(Step):
+    _name = "Initializing Downloader"
+
+    def run(self, payload: dict[str, Any]) -> int:
+        payload["downloader"] = Downloader(manage_aria2c=True)
+        logger.add_task("Downloader started")
+        return 0
+
+    def cleanup(self, payload: dict[str, Any]):
+        payload["downloader"].halt()
+        del payload["downloader"]
+
+
+class Aria2DownloadProgressBar:
+    """Custom progress bar tailored for aria2 Downloader
+
+    Displays as:
+
+    [Elapsed Time: 0:02:45] 1 MiB of 20 MiB downloaded|#####   |1 KiB/s (Time:  0:00:45)
+    """
+
+    def __init__(self, downloader: Downloader, total_bytes: int):
+        self.aria_downloader = downloader
+        self.bar = None
+        self.rebuild_for(total_bytes=total_bytes)
+
+    def rebuild_for(self, total_bytes: int):
+        self.total_bytes = total_bytes
+        # if self.bar:
+        #     self.bar.finish()
+
+        widgets = [
+            "[",
+            progressbar.Timer(),
+            "] ",
+            progressbar.DataSize(),
+            f" of {format_size(total_bytes)} downloaded",
+            progressbar.Bar(),
+            progressbar.AdaptiveTransferSpeed(),
+            " (",
+            progressbar.ETA(),
+            ")",
+        ]
+        self.bar = progressbar.ProgressBar(max_value=total_bytes, widgets=widgets)
+
+    def update(self):
+        feedback = self.aria_downloader.get_feedback()
+        if feedback.weight.total != self.total_bytes:
+            self.rebuild_for(total_bytes=feedback.weight.total)
+        self.bar.update(
+            # make sure we don't update bar above 100% (will not work)
+            min([feedback.weight.downloaded, feedback.weight.total])
+        )
+
+    def finish(self):
+        self.bar.finish()
+
+
+class FilesProcessor:
+    """Downloads the File objects supplied using a ThreadPoolExecutor"""
+
+    def __init__(
+        self,
+        files,
+        cache: CacheManager,
+        mount_point: pathlib.Path,
+        temp_dir: pathlib.Path,
+        callback: Callable,
+    ):
+        self.files = files
+        self.cache = cache
+        self.mount_point = mount_point
+        self.temp_dir = temp_dir
+
+        self.files = files
+        self.remaining = len(files)
+        self.aria_downloader = Downloader(manage_aria2c=True)
+        self.callback = callback
+
+    def process_file(
+        self,
+        file: File,
+    ):
+        dest_path = file.mounted_to(self.mount_point)
+        ensure_dir(dest_path.parent)
+        ensure_dir(self.temp_dir)
+
+        if file.is_direct:
+            if file in self.cache:
+                copy_file(self.cache[file].fpath, dest_path)
+                self.cache[file] += 1
+                self.direct_callback(
+                    file=file,
+                    dest_path=dest_path,
+                    dl=None,
+                    succeeded=True,
+                )
+            else:
+                callback = functools.partial(
+                    self.direct_callback, file=file, dest_path=dest_path
+                )
+                self.aria_downloader.download_to(
+                    uri=file.geturl(), to=dest_path, callback=callback
+                )
+        else:
+            temp_path = pathlib.Path(
+                tempfile.NamedTemporaryFile(
+                    dir=self.temp_dir, suffix=f"_{dest_path.name}"
+                ).name
+            )
+            if file in self.cache:
+                copy_file(self.cache[file].fpath, temp_path)
+                self.cache[file] += 1
+                self.nondirect_callback(
+                    file=file,
+                    temp_path=temp_path,
+                    dest_path=dest_path,
+                    dl=None,
+                    succeeded=True,
+                )
+            else:
+                callback = functools.partial(
+                    self.nondirect_callback,
+                    file=file,
+                    temp_path=temp_path,
+                    dest_path=dest_path,
+                )
+                self.aria_downloader.download_to(
+                    uri=file.geturl(), to=temp_path, callback=callback
+                )
+
+    def direct_callback(
+        self,
+        *,
+        file: File,
+        dest_path: pathlib.Path,
+        dl: Download | None,
+        succeeded: bool,
+    ):
+        if succeeded:
+            if self.cache.should_cache(file):
+                self.cache.introduce(file, dest_path)
+
+        try:
+            self.callback.__call__(
+                file=file,
+                succeeded=succeeded,
+                feedback=None if dl is None else dl.feedback,
+            )
+        finally:
+            self.remaining -= 1
+
+    def nondirect_callback(
+        self,
+        *,
+        file: File,
+        temp_path: pathlib.Path,
+        dest_path: pathlib.Path,
+        dl: Download | None,
+        succeeded: bool,
+    ):
+        if succeeded:
+            if self.cache.should_cache(file):
+                self.cache.introduce(file, temp_path)
+
+            try:
+                expand_file(src=temp_path, method=file.via, dest=dest_path)
+            except Exception as exc:
+                raise exc
+            finally:
+                temp_path.unlink(missing_ok=True)
+
+        try:
+            self.callback.__call__(
+                file=file,
+                succeeded=succeeded,
+                feedback=None if dl is None else dl.feedback,
+            )
+        finally:
+            self.remaining -= 1
+
+    @property
+    def is_running(self) -> bool:
+        return bool(self.remaining)
+
+    def start(self):
+        for file in self.files:
+            self.process_file(file)
+
+    def shutdown(self):
+        self.aria_downloader.halt()
+
+
 class DownloadingContent(Step):
     _name = "Downloading content"
 
@@ -310,97 +291,58 @@ class DownloadingContent(Step):
             logger.add_task("No content to download")
             return 0
 
-        dl_progress = MultiDownloadProgress(
-            nb_total=nb_remotes,
-            nb_completed=0,
-            bytes_total=sum(
-                [
-                    file.size if file.size else 0
-                    for file in payload["config"].remote_files
-                ]
-            ),
-            bytes_received=0,
-        )
-        dl_pb = MultiDownloadProgressBar(dl_progress)
-
-        # dont use multi-downloader for single file or thread==1
-        if nb_remotes == 1 or payload["options"].concurrency == 1:
-
-            def on_data(bytes_received: int):
-                """update both data holder and progress bar on data receival"""
-                dl_progress.on_data(bytes_received)
-                dl_pb.update()
-
-            for file in payload["config"].remote_files:
-                logger.add_task(f"Downloading {file.geturl()} into {file.to}…")
-                dest_path = file.mounted_to(mount_point)
-                try:
-                    download_file_worker(
-                        file,
-                        payload["cache"],
-                        mount_point,
-                        payload["options"].build_dir,
-                        on_data=on_data,
-                    )
-                except Exception as exc:
-                    logger.message()
-                    logger.complete_download(
-                        dest_path.name, failed=True, extra=str(exc)
-                    )
-                    return 1
-                else:
-                    dl_progress.nb_completed += 1
-                    logger.message()
-                    logger.complete_download(
-                        dest_path.name,
-                        size=format_size(get_size_of(dest_path)),
-                        extra=f"({dl_progress!s})",
-                    )
-            return 0
-
         # multi-download with UI refresh on MainThread
-        def on_completion(
-            file, result: Any, exc: Exception | None = None  # noqa: ARG001
-        ):
-            dl_progress.nb_completed += 1
+        def on_completion(*, file: File, succeeded: bool, feedback: Feedback | None):
             dest_path = file.mounted_to(mount_point)
-            if exc is not None:
-                logger.debug(f"Failed to download {file.url} into {dest_path}: {exc}")
-                raise exc
+            if not succeeded:
+                logger.debug(
+                    f"Failed to download {file.url} into {dest_path}: "
+                    f"{feedback.error if feedback else '?'}"
+                )
+                raise DownloadError(*feedback.error)
 
             cache_suffix = " (cached)" if file in payload["cache"] else ""
             logger.message()
             logger.complete_download(
                 dest_path.name,
                 size=format_size(get_size_of(dest_path)) + cache_suffix,
-                extra=f"({dl_progress!s})",
+                extra=(
+                    f"at {format_size(feedback.overall_speed)}/s"
+                    if feedback
+                    else "(copied)"
+                ),
             )
 
-        downloader = FilesMultiDownloader(
+        bytes_total = sum(
+            [file.size if file.size else 0 for file in payload["config"].remote_files]
+        )
+
+        manager = FilesProcessor(
             files=payload["config"].remote_files,
             cache=payload["cache"],
             mount_point=mount_point,
             temp_dir=payload["options"].build_dir.joinpath("dl_remotes"),
-            concurrency=payload["options"].concurrency,
             callback=on_completion,
-            on_data=dl_progress.on_data,
+        )
+
+        dl_pb = Aria2DownloadProgressBar(
+            downloader=manager.aria_downloader, total_bytes=bytes_total
         )
 
         logger.add_task(
-            f"Downloading {nb_remotes} files "
-            f"totaling {format_size(dl_progress.bytes_total)}…",
-            f"using {min([nb_remotes, downloader.executor._max_workers])} workers",
+            f"Retrieving {nb_remotes} files totaling {format_size(bytes_total)}…",
         )
 
         try:
-            downloader.start()
-            while downloader.is_running:
+            manager.start()
+            while manager.is_running:
                 dl_pb.update()
+                time.sleep(0.5)
         except KeyboardInterrupt:
-            downloader.shutdown(now=True)  # we should actually interrupt downloads here
+            manager.shutdown()  # we should actually interrupt downloads here
             raise
         else:
-            downloader.shutdown()
+            manager.shutdown()
         finally:
             dl_pb.update()
             dl_pb.finish()

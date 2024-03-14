@@ -67,6 +67,11 @@ def path_for_file(file: File) -> pathlib.Path:
 
     # add params/query/fragment to basename to ensure uniqueness
     fname = path.parts[-1]
+    # special case for Kiwix load-balancer. Files can be served
+    # via xxx.yy.meta4 extension but represent the xxx.yy content post-download
+    # doing this ensures with cache once for both URL (with or without metalink)
+    if file.url.netloc == "download.kiwix.org" and file.url.path.endswith(".meta4"):
+        fname = re.sub(r".meta4$", "", fname)
     if file.url.params:
         fname += f";{file.url.params}"
     if file.url.query:

@@ -46,7 +46,6 @@ class Options:
 
     keep_failed: bool
     overwrite: bool
-    concurrency: int
     max_size: int | None = None
 
     config_url: urllib.parse.ParseResult | None = None

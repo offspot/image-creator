@@ -68,15 +68,6 @@ def main():
         dest="max_size",
         help="Maximum image size allowed. Ex: 512GB",
     )
-    parser.add_argument(
-        "-T",
-        "--concurrency",
-        type=int,
-        default=0,
-        dest="concurrency",
-        help="Nb. of threads to start for parallel downloads (at most one per file). "
-        "`0` (default) for auto-selection based on CPUs. `1` to disable concurrency.",
-    )
     parser.add_argument("-D", "--debug", action="store_true", dest="debug")
     parser.add_argument("-V", "--version", action="version", version=__version__)
 
@@ -99,12 +90,12 @@ def main():
         if kwargs.get("debug"):
             logger.exception(exc)
         logger.critical(str(exc))
+        sys.exit(1)
+    finally:
         try:
             app.halt()  # pyright: ignore [reportUnboundVariable]
         except Exception as exc:
             logger.debug(f"Errors cleaning-up: {exc}")
-        sys.exit(1)
-    finally:
         logger.terminate()
 
 

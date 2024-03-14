@@ -13,7 +13,6 @@ from offspot_config.utils.misc import (
 
 from image_creator.constants import logger
 from image_creator.steps import Step
-from image_creator.utils.download import download_file
 
 
 class DownloadImage(Step):
@@ -32,12 +31,16 @@ class DownloadImage(Step):
         if base_file not in payload["cache"] and not base_file.is_local:
             logger.start_task(f"Downloading {base_file.geturl()} into {target}…")
             try:
-                download_file(base_file.geturl(), target)
+                dl = payload["downloader"].download_to(base_file.geturl(), target)
+                dl.block()
             except Exception as exc:
                 logger.fail_task(str(exc))
                 return 1
             else:
-                logger.succeed_task(format_size(get_filesize(target)))
+                logger.succeed_task(
+                    f"{format_size(get_filesize(target))} "
+                    f"({format_size(dl.overall_speed)}/s)"
+                )
                 if payload["cache"].should_cache(base_file):
                     logger.start_task("Adding Base Image to cache…")
                     if payload["cache"].introduce(base_file, target):
@@ -77,12 +80,16 @@ class DownloadImage(Step):
         if base_file not in payload["cache"] and not base_file.is_local:
             logger.start_task(f"Downloading {base_file.geturl()} into {xz_fpath}…")
             try:
-                download_file(base_file.geturl(), xz_fpath)
+                dl = payload["downloader"].download_to(base_file.geturl(), xz_fpath)
+                dl.block()
             except Exception as exc:
                 logger.fail_task(str(exc))
                 return 1
             else:
-                logger.succeed_task(format_size(get_filesize(xz_fpath)))
+                logger.succeed_task(
+                    f"{format_size(get_filesize(xz_fpath))} "
+                    f"({format_size(dl.overall_speed)}/s)"
+                )
                 remove_xz = True
                 if payload["cache"].should_cache(base_file):
                     logger.start_task("Adding Base Image to cache…")
