@@ -90,7 +90,15 @@ class InitDownloader(Step):
     _name = "Initializing Downloader"
 
     def run(self, payload: dict[str, Any]) -> int:
-        payload["downloader"] = Downloader(manage_aria2c=True)
+        payload["downloader"] = Downloader(
+            manage_aria2c=True,
+            # only specify aria2c path on built nuitka binary
+            aria2c_bin_path=(
+                payload["options"].root_dir.parent.joinpath("aria2c")
+                if payload["options"].is_onebinary
+                else None
+            ),
+        )
         logger.add_task("Downloader started")
         return 0
 

@@ -1,14 +1,25 @@
 # pyright: strict, reportUntypedFunctionDecorator=false
+import base64
+import hashlib
 import os
 import pathlib
 import shlex
+import shutil
 import sys
+import tempfile
+import zipfile
 
+import requests
 from invoke.context import Context
 from invoke.tasks import task  # pyright: ignore [reportUnknownVariableType]
 
 from image_creator import __version__
 
+ARIA2_RELEASE = (
+    "https://github.com/abcfy2/aria2-static-build/releases/download/1.37.0/"
+    "aria2-x86_64-linux-musl_libressl_static.zip"
+)
+ARIA2_BIN = pathlib.Path("aria2c")
 use_pty = not os.getenv("CI", "")
 
 
@@ -114,6 +125,49 @@ def fixall(ctx: Context, args: str = "."):
     lintall(ctx, args)
 
 
+@task
+def download_aria2c(ctx: Context, force: bin = False):
+    aria2c_bin = pathlib.Path.cwd() / ARIA2_BIN
+    if aria2c_bin.exists() and not force:
+        print(f"{aria2c_bin.resolve()} already exixts.")
+        return
+
+    resp = requests.get(ARIA2_RELEASE, stream=True, timeout=5)
+    resp.raise_for_status()
+    total = int(resp.headers.get("Content-Length", "1"))
+    received_sum = resp.headers.get("content-md5", "").strip()
+    downloaded = 0
+    aria2c_bin.parent.mkdir(parents=True, exist_ok=True)
+    aria2c_bin_zip = aria2c_bin.with_name(f"{aria2c_bin.name}.zip")
+    md5sum = hashlib.md5()  # noqa: S324
+    print(f"Downloading {aria2c_bin_zip.resolve()} from {ARIA2_RELEASE}…")
+    with open(aria2c_bin_zip, "wb") as fh:
+        for data in resp.iter_content(1048576):  # 1MiB
+            nb_received = len(data)
+            downloaded += nb_received
+            fh.write(data)
+            percent = downloaded / total * 100
+            print(f"\r*** {downloaded}b of {total}b ({percent:.2f}%)", end="")
+            md5sum.update(data)
+    print("")
+    computed_sum = base64.standard_b64encode(md5sum.digest()).decode("UTF-8").strip()
+    if received_sum and received_sum != computed_sum:
+        print("Checksum mismatch! {received_sum=} - {computed_sum=}")
+        print("Removing.")
+        aria2c_bin.unlink()
+        aria2c_bin_zip.unlink()
+        return 1
+    print(f"Checksum matches! {md5sum.hexdigest()}")
+
+    with tempfile.TemporaryDirectory() as dirname:
+        folder = pathlib.Path(dirname)
+        with zipfile.ZipFile(aria2c_bin_zip) as zh:
+            zh.extract("aria2c", path=folder)
+        shutil.move(folder.joinpath("aria2c"), aria2c_bin)
+    aria2c_bin_zip.unlink()
+    print(f"Downloaded aria2c at {aria2c_bin.resolve()}: {aria2c_bin.stat().st_size}b")
+
+
 @task(
     optional=["filename", "compress"],
     help={
@@ -140,6 +194,7 @@ def binary(ctx: Context, filename: str = "", *, no_compress: bool = False):
         "--onefile",
         "--python-flag=no_site,no_warnings,no_asserts,no_docstrings",
         "--include-package=image_creator",
+        "--include-data-files=aria2c=aria2c",
         "--show-modules",
         "--warn-implicit-exceptions",
         "--warn-unusual-code",

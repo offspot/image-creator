@@ -135,6 +135,8 @@ class Aria2Process:
             self.ps.send_signal(signal.SIGTERM)
             self.started = False
             self.ps.terminate()
+            # make sure process is dead and release before releasing ourselves
+            time.sleep(1)
 
 
 class Download(aria2p.Download):

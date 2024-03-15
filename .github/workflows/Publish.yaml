@@ -41,6 +41,8 @@ jobs:
         run: |
           pip install -U pip
           pip install .[scripts,binary]
+      - name: Download aria2c
+        run: invoke download-aria2c
       - name: Build binary
         run: invoke binary --filename "/tmp/$BIN_FILENAME"
       - name: Test binary is able to start

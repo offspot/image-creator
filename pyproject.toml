@@ -51,6 +51,7 @@ binary = [
   "ordered-set==4.1.0",
   "zstandard==0.22.0",
   "nuitka==2.0.5",
+  "requests==2.31.0",
 ]
 dev = [
   "pre-commit==3.6.0",
@@ -125,6 +126,7 @@ python = ["3.11"]
 
 [tool.hatch.envs.binary.scripts]
 build = "inv binary --filename '{args}'"
+download-aria2 = "inv download-aria2c"
 
 [tool.black]
 line-length = 88
@@ -225,6 +227,7 @@ ban-relative-imports = "all"
 [tool.ruff.per-file-ignores]
 # Tests can use magic values, assertions, and relative imports
 "tests/**/*" = ["PLR2004", "S101", "TID252"]
+"tasks.py" = ["T201"]
 
 [tool.pytest.ini_options]
 minversion = "7.3"
