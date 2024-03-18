@@ -103,7 +103,11 @@ class Options:
 
     @property
     def is_onebinary(self) -> bool:
-        return getattr(image_creator, "__compiled__", False)
+        if not getattr(image_creator, "__compiled__", False):
+            return False
+        return (
+            image_creator.__compiled__.onefile  # pyright: ignore[reportAttributeAccessIssue]
+        )
 
     @classmethod
     def get_logger(cls) -> Logger:
