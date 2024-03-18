@@ -142,16 +142,47 @@ class Aria2Process:
 class Download(aria2p.Download):
     """aria2p Download subclass with additional accessors"""
 
+    def __init__(
+        self,
+        *args,
+        folder: tempfile.TemporaryDirectory,
+        final_path: Path,
+        started_on: datetime.datetime,
+        callback: Callable | None,
+        **kargs,
+    ):
+        super().__init__(*args, **kargs)
+        self.folder = folder
+        self.final_path = final_path
+        self.started_on = started_on
+        self.completed_on: datetime.datetime | None = None
+        self.callback = callback
+
     @classmethod
-    def cast(cls, obj, *, update: bool = False) -> Self:
+    def cast(
+        cls,
+        obj,
+        *,
+        update: bool = False,
+        folder: tempfile.TemporaryDirectory | None,
+        final_path: Path | None,
+        started_on: datetime.datetime | None,
+        callback: Callable | None,
+    ) -> Self:
         base_cls_name = obj.__class__.__name__
-        obj.__class__ = type(base_cls_name, (Download,), {})
+        obj.__class__ = type(
+            base_cls_name,
+            (Download,),
+            {
+                "folder": folder,
+                "final_path": final_path,
+                "started_on": started_on,
+                "completed_on": None,
+                "callback": callback,
+                "post_processed": False,
+            },
+        )
 
-        # overload object
-        obj.folder = None
-        obj.final_path = None
-
-        obj.post_processed = False
         if update:
             obj.update()
         return obj
@@ -164,18 +195,27 @@ class Download(aria2p.Download):
         final_path: Path,
         callback: Callable | None = None,
     ) -> Self:
-        dl = cls.cast(instance)
-        dl.folder = folder
-        dl.final_path = final_path
-        dl.started_on = datetime.datetime.now(tz=datetime.UTC)
-        dl.completed_on = None
-        dl.callback = callback
+        dl = cls.cast(
+            instance,
+            folder=folder,
+            final_path=final_path,
+            started_on=datetime.datetime.now(tz=datetime.UTC),
+            callback=callback,
+        )
         return dl
 
     def get_followers(self, *, updated: bool) -> list[Self]:
         """list of followers, optionnaly updated (casted followed_by)"""
         return [
-            type(self).cast(follower, update=updated) for follower in self.followed_by
+            type(self).cast(
+                follower,
+                update=updated,
+                folder=None,
+                final_path=None,
+                started_on=None,
+                callback=None,
+            )
+            for follower in self.followed_by
         ]
 
     @property
@@ -217,7 +257,7 @@ class Download(aria2p.Download):
     def overall_speed(self) -> int:
         if not self.completed_on:
             return 0
-        return self.total_length / self.overall_duration.total_seconds()
+        return int(self.total_length / self.overall_duration.total_seconds())
 
     def get_progress(self) -> Progress:
         """Unified progress data for self and followers"""
@@ -235,7 +275,10 @@ class Download(aria2p.Download):
     @property
     def error(self) -> DownloadErrorInfo | None:
         if self.status == "error":
-            return DownloadErrorInfo(code=self.error_code, message=self.error_message)
+            return DownloadErrorInfo(
+                code=self.error_code or "-1",
+                message=self.error_message or "Unknown Error",
+            )
 
     def get_error(self) -> DownloadErrorInfo | None:
         for dl in self.all_downloads:
@@ -293,7 +336,7 @@ class Download(aria2p.Download):
 
     @property
     def actual_files(self) -> list[aria2p.File]:
-        def is_real_file(file: aria2p.File, from_dl: aria2p.Download) -> bool:
+        def is_real_file(file: aria2p.File, from_dl: Download) -> bool:
             if file.is_metadata:
                 return False
             if from_dl.is_dottorrent:
@@ -496,15 +539,20 @@ class Downloader:
             )
         else:
             self.aria2c = None
-            self._client = aria2p.Client(
-                host=aria2c_rpc_host, port=aria2c_rpc_port, secret=aria2c_rpc_secret
-            )
+            kwargs = {}
+            if aria2c_rpc_host:
+                kwargs["host"] = aria2c_rpc_host
+            if aria2c_rpc_port:
+                kwargs["port"] = aria2c_rpc_port
+            if aria2c_rpc_secret:
+                kwargs["secret"] = aria2c_rpc_secret
+            self._client = aria2p.Client(**kwargs)
 
         self.halt_on_error = halt_on_error
         self.is_listening = False
 
         # tracking this instance's downloads as aria2c process can be shared
-        self.downloads: list[aria2p.Download] = []
+        self.downloads: list[Download] = []
 
         self.api = aria2p.API(client=self._client)
 
@@ -535,7 +583,7 @@ class Downloader:
                 return True
         return False
 
-    def get_dl(self, gid: str) -> aria2p.Download:
+    def get_dl(self, gid: str) -> Download:
         for dl in self.downloads:
             if dl.gid == gid:
                 return dl.updated
@@ -628,7 +676,9 @@ class Downloader:
         if dl.callback:
             dl.callback.__call__(dl=dl, succeeded=False)
             return
-        raise DownloadError(dl.error.code, dl.error.message)
+        raise DownloadError(
+            getattr(dl.error, "code", None), getattr(dl.error, "message", None)
+        )
 
     def start_listening(self):
         if self.is_listening is not False:

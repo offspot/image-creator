@@ -125,8 +125,8 @@ def fixall(ctx: Context, args: str = "."):
     lintall(ctx, args)
 
 
-@task
-def download_aria2c(ctx: Context, force: bin = False):
+@task(optional=["force"], help={"force": "Download even if aria2c bin is present"})
+def download_aria2c(ctx: Context, *, force: bool = False):  # noqa: ARG001
     aria2c_bin = pathlib.Path.cwd() / ARIA2_BIN
     if aria2c_bin.exists() and not force:
         print(f"{aria2c_bin.resolve()} already exixts.")

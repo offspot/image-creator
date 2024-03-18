@@ -117,7 +117,7 @@ class Aria2DownloadProgressBar:
 
     def __init__(self, downloader: Downloader, total_bytes: int):
         self.aria_downloader = downloader
-        self.bar = None
+        self.bar = progressbar.ProgressBar()
         self.rebuild_for(total_bytes=total_bytes)
 
     def rebuild_for(self, total_bytes: int):
@@ -307,7 +307,9 @@ class DownloadingContent(Step):
                     f"Failed to download {file.url} into {dest_path}: "
                     f"{feedback.error if feedback else '?'}"
                 )
-                raise DownloadError(*feedback.error)
+                if feedback and feedback.error:
+                    raise DownloadError(*feedback.error)
+                raise DownloadError("Unknown Error")
 
             cache_suffix = " (cached)" if file in payload["cache"] else ""
             logger.message()
