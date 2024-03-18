@@ -90,14 +90,15 @@ class InitDownloader(Step):
     _name = "Initializing Downloader"
 
     def run(self, payload: dict[str, Any]) -> int:
+        bin_path = (
+            payload["options"].root_dir.parent.joinpath("aria2c")
+            if payload["options"].is_onebinary
+            else None
+        )
         payload["downloader"] = Downloader(
             manage_aria2c=True,
             # only specify aria2c path on built nuitka binary
-            aria2c_bin_path=(
-                payload["options"].root_dir.parent.joinpath("aria2c")
-                if payload["options"].is_onebinary
-                else None
-            ),
+            aria2c_bin_path=bin_path,
         )
         logger.add_task("Downloader started")
         return 0
@@ -161,6 +162,7 @@ class FilesProcessor:
         cache: CacheManager,
         mount_point: pathlib.Path,
         temp_dir: pathlib.Path,
+        aria_downloader: Downloader,
         callback: Callable,
     ):
         self.files = files
@@ -170,7 +172,7 @@ class FilesProcessor:
 
         self.files = files
         self.remaining = len(files)
-        self.aria_downloader = Downloader(manage_aria2c=True)
+        self.aria_downloader = aria_downloader
         self.callback = callback
 
     def process_file(
@@ -333,6 +335,7 @@ class DownloadingContent(Step):
             mount_point=mount_point,
             temp_dir=payload["options"].build_dir.joinpath("dl_remotes"),
             callback=on_completion,
+            aria_downloader=payload["downloader"],
         )
 
         dl_pb = Aria2DownloadProgressBar(
