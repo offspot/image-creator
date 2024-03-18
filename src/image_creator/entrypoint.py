@@ -84,7 +84,18 @@ def main():
     from image_creator.creator import ImageCreator
 
     try:
-        app = ImageCreator(**kwargs)
+        app = ImageCreator(
+            build_dir=kwargs["BUILD_DIR"],
+            cache_dir=kwargs["CACHE_DIR"],
+            show_cache=kwargs["show_cache"],
+            check_only=kwargs["check_only"],
+            keep_failed=kwargs["keep_failed"],
+            overwrite=kwargs["overwrite"],
+            max_size=kwargs["max_size"],
+            debug=kwargs["debug"],
+            config_src=kwargs["CONFIG_SRC"],
+            output=kwargs["OUTPUT"],
+        )
         sys.exit(app.run())
     except Exception as exc:
         if kwargs.get("debug"):

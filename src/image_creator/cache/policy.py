@@ -41,12 +41,8 @@ class Eviction:
         return tuple(cls.__dataclass_fields__.keys())
 
 
-# class Policy:
-#     ...
-
-
 @dataclass(kw_only=True)
-class Policy:  # CommonParamsMixin
+class Policy:
     max_size: int | str | None = None
     max_age: int | str | None = None
     max_num: int | None = None

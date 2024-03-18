@@ -50,7 +50,7 @@ class Options:
 
     keep_failed: bool
     overwrite: bool
-    max_size: int | None = None
+    max_size: int | str | None = None
 
     config_url: urllib.parse.ParseResult | None = None
     logger: Logger = field(init=False)
