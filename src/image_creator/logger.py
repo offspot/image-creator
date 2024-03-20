@@ -77,6 +77,8 @@ class Logger:
             ui.CONFIG["timestamp"] = False
 
     def debug(self, text: str):
+        if self.verbose is None or self.verbose > logging.DEBUG:
+            return
         self.clear()
         ui.debug(ui.indent(text, num=self.indent_level))
 

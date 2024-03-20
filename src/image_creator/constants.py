@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import logging
+import os
 import pathlib
+import stat
 import sys
 import tempfile
 import urllib.parse
@@ -10,6 +12,7 @@ from dataclasses import dataclass, field
 from docker_export import Platform
 from offspot_config.utils.misc import is_http, parse_size
 
+import image_creator
 from image_creator import __version__ as vers
 from image_creator.logger import Logger
 
@@ -43,11 +46,11 @@ class Options:
     output_path: pathlib.Path | None = None
     build_dir: pathlib.Path | None = None
     cache_dir: pathlib.Path | None = None
+    root_dir: pathlib.Path = pathlib.Path(__file__).parent
 
     keep_failed: bool
     overwrite: bool
-    concurrency: int
-    max_size: int | None = None
+    max_size: int | str | None = None
 
     config_url: urllib.parse.ParseResult | None = None
     logger: Logger = field(init=False)
@@ -80,6 +83,12 @@ class Options:
         if isinstance(self.max_size, str):
             self.max_size = parse_size(self.max_size)
 
+        # chmod +x aria2c binary packages as data file by nuitka in one-binary
+        if self.is_onebinary:
+            aria2c_bin = self.root_dir.parent.joinpath("aria2c")
+            if not os.access(aria2c_bin, os.X_OK):
+                aria2c_bin.chmod(aria2c_bin.stat().st_mode | stat.S_IXOTH)
+
     @property
     def version(self):
         return vers
@@ -91,6 +100,14 @@ class Options:
         if self.config_path is not None:
             return self.config_path
         raise OSError("Neither config_url nor config_path")
+
+    @property
+    def is_onebinary(self) -> bool:
+        if not getattr(image_creator, "__compiled__", False):
+            return False
+        return (
+            image_creator.__compiled__.onefile  # pyright: ignore[reportAttributeAccessIssue]
+        )
 
     @classmethod
     def get_logger(cls) -> Logger:

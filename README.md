@@ -32,9 +32,6 @@ options:
   -C, --check           Only check inputs, URLs and sizes. Don't download/create image.
   -K, --keep            [DEBUG] Don't remove output image if creation failed
   -X, --overwrite       Don't fail on existing output image: remove instead
-  -T CONCURRENCY, --concurrency CONCURRENCY
-                        Nb. of threads to start for parallel downloads (at most one per file). `0` (default) for auto-selection based on CPUs.
-                        `1` to disable concurrency.
   -D, --debug
   -V, --version         show program's version number and exit
 

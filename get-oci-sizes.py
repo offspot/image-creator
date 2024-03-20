@@ -59,7 +59,7 @@ def sizes_from_path(fpath: pathlib.Path) -> tuple[int, int]:
     )
     temp_dir_path = pathlib.Path(temp_dir.name)
     with tarfile.open(fpath) as tar:
-        tar.extractall(temp_dir_path)
+        tar.extractall(temp_dir_path)  # noqa: S202
 
     fullsize = get_dirsize(temp_dir_path)
     temp_dir.cleanup()

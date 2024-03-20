@@ -68,15 +68,6 @@ def main():
         dest="max_size",
         help="Maximum image size allowed. Ex: 512GB",
     )
-    parser.add_argument(
-        "-T",
-        "--concurrency",
-        type=int,
-        default=0,
-        dest="concurrency",
-        help="Nb. of threads to start for parallel downloads (at most one per file). "
-        "`0` (default) for auto-selection based on CPUs. `1` to disable concurrency.",
-    )
     parser.add_argument("-D", "--debug", action="store_true", dest="debug")
     parser.add_argument("-V", "--version", action="version", version=__version__)
 
@@ -93,18 +84,29 @@ def main():
     from image_creator.creator import ImageCreator
 
     try:
-        app = ImageCreator(**kwargs)
+        app = ImageCreator(
+            build_dir=kwargs["BUILD_DIR"],
+            cache_dir=kwargs["CACHE_DIR"],
+            show_cache=kwargs["show_cache"],
+            check_only=kwargs["check_only"],
+            keep_failed=kwargs["keep_failed"],
+            overwrite=kwargs["overwrite"],
+            max_size=kwargs["max_size"],
+            debug=kwargs["debug"],
+            config_src=kwargs["CONFIG_SRC"],
+            output=kwargs["OUTPUT"],
+        )
         sys.exit(app.run())
     except Exception as exc:
         if kwargs.get("debug"):
             logger.exception(exc)
         logger.critical(str(exc))
+        sys.exit(1)
+    finally:
         try:
             app.halt()  # pyright: ignore [reportUnboundVariable]
         except Exception as exc:
             logger.debug(f"Errors cleaning-up: {exc}")
-        sys.exit(1)
-    finally:
         logger.terminate()
 
 

@@ -13,7 +13,11 @@ from image_creator.steps.check_inputs import (
     CheckURLs,
     WritingOffspotConfig,
 )
-from image_creator.steps.contents import DownloadingContent, ProcessingLocalContent
+from image_creator.steps.contents import (
+    DownloadingContent,
+    InitDownloader,
+    ProcessingLocalContent,
+)
 from image_creator.steps.image import (
     DetachingImage,
     MountingBootPart,
@@ -39,6 +43,7 @@ class StepMachine:
         CheckURLs,
         ComputeSizes,
         # check-only stops here
+        InitDownloader,
         DownloadImage,
         ResizingImage,
         MountingDataPart,

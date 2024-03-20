@@ -29,8 +29,7 @@ class Step:
         ...
 
 
-class VirtualInitStep(Step):
-    ...
+class VirtualInitStep(Step): ...
 
 
 class GivingFeedback(Step):

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import atexit
-from typing import Any
 
 from offspot_config.utils.misc import rmtree
 
@@ -11,8 +10,35 @@ from image_creator.steps.machine import StepMachine
 
 
 class ImageCreator:
-    def __init__(self, **kwargs: dict[str, Any]):
-        Global.options = Options(**kwargs)  # pyright: ignore [reportGeneralTypeIssues]
+    def __init__(
+        self,
+        *,
+        build_dir: str,
+        cache_dir: str,
+        show_cache: bool,
+        check_only: bool,
+        keep_failed: bool,
+        overwrite: bool,
+        max_size: str,
+        debug: bool,
+        config_src: str,
+        output: str,
+    ):
+        Global.options = Options(
+            BUILD_DIR=build_dir,
+            CACHE_DIR=cache_dir,
+            show_cache=show_cache,
+            check_only=check_only,
+            keep_failed=keep_failed,
+            overwrite=overwrite,
+            max_size=max_size,
+            debug=debug,
+            CONFIG_SRC=config_src,
+            OUTPUT=output,
+        )
+
+        # cpyright: ignore [reportGeneralTypeIssues]
+
         Global._ready = True
         # make sure we clean things up before exiting
         atexit.register(self.halt)

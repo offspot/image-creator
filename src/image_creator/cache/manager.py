@@ -19,13 +19,7 @@ from offspot_config.utils.misc import (
     is_http,
 )
 
-from image_creator.cache.policy import (
-    Eviction,
-    FilesPolicy,
-    MainPolicy,
-    OCIImagePolicy,
-    Policy,
-)
+from image_creator.cache.policy import Eviction, FilesPolicy, MainPolicy, OCIImagePolicy
 from image_creator.constants import Global, logger
 from image_creator.utils.download import get_digest
 
@@ -67,6 +61,11 @@ def path_for_file(file: File) -> pathlib.Path:
 
     # add params/query/fragment to basename to ensure uniqueness
     fname = path.parts[-1]
+    # special case for Kiwix load-balancer. Files can be served
+    # via xxx.yy.meta4 extension but represent the xxx.yy content post-download
+    # doing this ensures with cache once for both URL (with or without metalink)
+    if file.url.netloc == "download.kiwix.org" and file.url.path.endswith(".meta4"):
+        fname = re.sub(r".meta4$", "", fname)
     if file.url.params:
         fname += f";{file.url.params}"
     if file.url.query:
@@ -206,13 +205,10 @@ class CacheCandidate(CacheEntry):
 
 
 def get_eviction_for(
-    entries: list[CacheEntry], policy: Policy | OCIImagePolicy | FilesPolicy
+    entries: list[CacheEntry], policy: MainPolicy | OCIImagePolicy | FilesPolicy
 ) -> list[tuple[CacheEntry, str]]:
     """list of (entry, reason) from entries that are expired or outdated"""
-    if (
-        hasattr(policy, "enabled")
-        and not policy.enabled  # pyright: ignore[reportGeneralTypeIssues]
-    ):
+    if hasattr(policy, "enabled") and not policy.enabled:
         return []
 
     evictions = []
