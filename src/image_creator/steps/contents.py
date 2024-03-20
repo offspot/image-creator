@@ -197,7 +197,7 @@ class FilesProcessor:
                 callback = functools.partial(
                     self.direct_callback, file=file, dest_path=dest_path
                 )
-                self.aria_downloader.download_to(
+                self.aria_downloader.add(
                     uri=file.geturl(), to=dest_path, callback=callback
                 )
         else:
@@ -223,7 +223,7 @@ class FilesProcessor:
                     temp_path=temp_path,
                     dest_path=dest_path,
                 )
-                self.aria_downloader.download_to(
+                self.aria_downloader.add(
                     uri=file.geturl(), to=temp_path, callback=callback
                 )
 

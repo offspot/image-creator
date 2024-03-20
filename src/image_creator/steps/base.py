@@ -31,7 +31,7 @@ class DownloadImage(Step):
         if base_file not in payload["cache"] and not base_file.is_local:
             logger.start_task(f"Downloading {base_file.geturl()} into {target}…")
             try:
-                dl = payload["downloader"].download_to(base_file.geturl(), target)
+                dl = payload["downloader"].add(base_file.geturl(), target)
                 dl.block()
             except Exception as exc:
                 logger.fail_task(str(exc))
@@ -80,7 +80,7 @@ class DownloadImage(Step):
         if base_file not in payload["cache"] and not base_file.is_local:
             logger.start_task(f"Downloading {base_file.geturl()} into {xz_fpath}…")
             try:
-                dl = payload["downloader"].download_to(base_file.geturl(), xz_fpath)
+                dl = payload["downloader"].add(base_file.geturl(), xz_fpath)
                 dl.block()
             except Exception as exc:
                 logger.fail_task(str(exc))
