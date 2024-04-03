@@ -72,10 +72,10 @@ def main():
         "-T",
         "--concurrency",
         type=int,
-        default=0,
+        default=1,
         dest="concurrency",
         help="Nb. of threads to start for parallel downloads (at most one per file). "
-        "`0` (default) for auto-selection based on CPUs. `1` to disable concurrency.",
+        "`0` for auto-selection based on CPUs. `1` (default) to disable concurrency.",
     )
     parser.add_argument("-D", "--debug", action="store_true", dest="debug")
     parser.add_argument("-V", "--version", action="version", version=__version__)
