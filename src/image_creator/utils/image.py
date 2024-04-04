@@ -211,6 +211,17 @@ def check_third_partition_device(dev_path: str):
     attach_to_device(img_fpath=pathlib.Path(image_path), loop_dev=dev_path)
 
 
+def fsck_ext4(dev_path: str):
+    """check disk or patition, auto fixing what's possible"""
+    subprocess.run(
+        ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", f"{dev_path}p3"],
+        check=True,
+        capture_output=only_on_debug,
+        text=True,
+        env=get_environ(),
+    )
+
+
 def resize_third_partition(dev_path: str):
     """recreate third partition of a device and its (ext4!) filesystem"""
     nb_sectors = get_device_sectors(dev_path)
@@ -254,13 +265,7 @@ def resize_third_partition(dev_path: str):
     logger.debug(f"{dev_path}p3 checked OK")
 
     # check fs on 3rd part
-    subprocess.run(
-        ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", f"{dev_path}p3"],
-        check=True,
-        capture_output=only_on_debug,
-        text=True,
-        env=get_environ(),
-    )
+    fsck_ext4(f"{dev_path}p3")
 
     logger.debug(f"fsck.ext4 of {dev_path}p3 succeeded")
 
@@ -276,13 +281,7 @@ def resize_third_partition(dev_path: str):
     logger.debug(f"resize2fs of {dev_path}p3 succeeded")
 
     # check fs on 3rd part
-    subprocess.run(
-        ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", f"{dev_path}p3"],
-        check=True,
-        capture_output=only_on_debug,
-        text=True,
-        env=get_environ(),
-    )
+    fsck_ext4(f"{dev_path}p3")
 
     logger.debug(f"fsck.ext4(2) of {dev_path}p3 succeeded")
 
@@ -374,6 +373,9 @@ class Image:
     def resize_last_part(self):
         """resize 3rd partition and filesystem to use all remaining space"""
         resize_third_partition(self.loop_dev)
+
+    def fsck_last_part(self):
+        fsck_ext4(f"{self.loop_dev}p3")
 
     def mount_p1(self) -> pathlib.Path:
         """mount first (boot) partition"""

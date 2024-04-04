@@ -97,6 +97,15 @@ class UnmountingDataPart(Step):
             return 1
         else:
             logger.succeed_task()
+
+        try:
+            logger.start_task(f"Checking {payload['image'].p3_mounted_on} fs…")
+            payload["image"].fsck_last_part()
+        except Exception as exc:
+            # OK to fail (will be caught on first boot)
+            logger.fail_task(str(exc))
+        else:
+            logger.succeed_task()
         return 0
 
 
