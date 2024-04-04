@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Third partition is checked once again after being unmounted to ensure clean state
+- Use force (-f) on resize2fs for part3
 
 ## [1.0.0] - 2024-04-01
 
