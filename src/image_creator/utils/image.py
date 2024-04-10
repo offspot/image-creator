@@ -214,7 +214,7 @@ def check_third_partition_device(dev_path: str):
 def fsck_ext4(dev_path: str):
     """check disk or patition, auto fixing what's possible"""
     subprocess.run(
-        ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", f"{dev_path}p3"],
+        ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", str(dev_path)],
         check=True,
         capture_output=only_on_debug,
         text=True,
