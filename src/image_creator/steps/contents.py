@@ -14,6 +14,7 @@ from offspot_config.utils.misc import (
     copy_file,
     ensure_dir,
     expand_file,
+    format_duration,
     format_size,
     get_filesize,
     get_size_of,
@@ -359,4 +360,12 @@ class DownloadingContent(Step):
         finally:
             dl_pb.update()
             dl_pb.finish()
+        fb = payload["downloader"].get_feedback()
+        logger.add_task(
+            f"Downloaded "
+            f"{fb.count.downloaded}/{fb.count.total} files ({fb.weight.percent}% – "  # noqa: RUF001
+            f"{format_size(fb.weight.downloaded)} / {format_size(fb.weight.total)}) "
+            f"in {format_duration(fb.duration)} "
+            f"at {format_size(fb.speed)}/s"
+        )
         return 0

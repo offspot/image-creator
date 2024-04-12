@@ -106,6 +106,8 @@ class Feedback(NamedTuple):
 class GeneralFeedback(NamedTuple):
     count: Progress
     weight: Progress
+    duration: datetime.timedelta
+    speed: int
     downloads: list[Feedback]
 
 
@@ -597,6 +599,7 @@ class Download(aria2p.Download):
         self.cleanup()
 
         # done processing now
+        self.completed_on = datetime.datetime.now(tz=datetime.UTC)
         self.post_processed = True
 
         if self.callback:
@@ -888,6 +891,7 @@ class Downloader:
             feedbacks = [dl for dl in dls if dl.gid in only_for]
 
         downloaded_nb = downloaded_bytes = total_nb = total_bytes = speed = 0
+        started_ons, completed_ons = [], []
         feedbacks = []
         for dl in self.downloads:
             if only_for and dl.gid not in only_for:
@@ -899,13 +903,24 @@ class Downloader:
             downloaded_bytes += feedback.progress.downloaded
             total_bytes += feedback.progress.total
             speed += feedback.progress.speed
+            started_ons.append(dl.started_on)
+            completed_ons.append(dl.completed_on)
             feedbacks.append(feedback)
+        started_on = min(started_ons)
+        completed_on = (
+            max(completed_ons)
+            if all(isinstance(item, datetime.datetime) for item in completed_ons)
+            else datetime.datetime.now(tz=datetime.UTC)
+        )
+        duration = completed_on - started_on
 
         return GeneralFeedback(
             count=Progress(downloaded=downloaded_nb, total=total_nb, speed=0),
             weight=Progress(
                 downloaded=downloaded_bytes, total=total_bytes, speed=speed
             ),
+            duration=duration,
+            speed=int(downloaded_bytes / duration.total_seconds()),
             downloads=feedbacks,
         )
 
@@ -941,7 +956,13 @@ class Downloader:
         for dl in self.downloads:
             dl.mark_done()
             if not dl.is_complete:
-                dl.remove(force=True)  # we may be safer and also remove followers
+                # might already been halted as errors can halt on error event
+                # then exit context manager and try to halt again.
+                # race condition can happen
+                try:
+                    dl.remove(force=True)  # we may be safer and also remove followers
+                except Exception:
+                    ...
         self._stop_listening()
         if self.aria2c:
             logger.debug(f"stopping {self.aria2c}")
@@ -1015,7 +1036,6 @@ class Downloader:
         if not self.is_ours(gid):
             return
         dl = self.get(gid)
-        dl.completed_on = datetime.datetime.now(tz=datetime.UTC)
 
         # don't process torrent initiator just now. last followers will
         if (dl.is_torrent and dl.is_metadata) or dl.is_dottorrent:
@@ -1040,7 +1060,6 @@ class Downloader:
         if not self.is_ours(gid):
             return
         dl = self.get(gid)
-        dl.completed_on = datetime.datetime.now(tz=datetime.UTC)
         dl.post_process()
 
         # request post-processing of main torrent

@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- [`utils.aria2`] `Downloader.get_feedback()` now includes overall `duration` and `speed`
+- Contents download now displays overall download stats with speed
+
+### Fixed
+
+- [`utils.aria2`] `Download.completed_on` now set in `post_process` for better accuracy on indirect downloads
+
 ### Removed
 
 - `utils.download.download_file` which is not used anymore
