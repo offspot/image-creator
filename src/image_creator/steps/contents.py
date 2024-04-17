@@ -199,7 +199,10 @@ class FilesProcessor:
                     self.direct_callback, file=file, dest_path=dest_path
                 )
                 self.aria_downloader.add(
-                    uri=file.geturl(), to=dest_path, callback=callback
+                    uri=file.geturl(),
+                    to=dest_path,
+                    checksum=file.checksum.as_aria if file.checksum else "",
+                    callback=callback,
                 )
         else:
             temp_path = pathlib.Path(
@@ -305,7 +308,13 @@ class DownloadingContent(Step):
         # multi-download with UI refresh on MainThread
         def on_completion(*, file: File, succeeded: bool, feedback: Feedback | None):
             dest_path = file.mounted_to(mount_point)
+            logger.message()
             if not succeeded:
+                logger.complete_download(
+                    dest_path.name,
+                    extra=str(feedback.error) if feedback else "n/a",
+                    failed=True,
+                )
                 logger.debug(
                     f"Failed to download {file.url} into {dest_path}: "
                     f"{feedback.error if feedback else '?'}"
@@ -315,7 +324,6 @@ class DownloadingContent(Step):
                 raise DownloadError("Unknown Error")
 
             cache_suffix = " (cached)" if file in payload["cache"] else ""
-            logger.message()
             logger.complete_download(
                 dest_path.name,
                 size=format_size(get_size_of(dest_path)) + cache_suffix,

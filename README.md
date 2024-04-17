@@ -59,9 +59,22 @@ Image configuration is done through a YAML file which must match the following f
 | `files[].to`       | `string`       | [required] Path to store file at. Must be a descendent of `/data`                                                                                                  |
 | `files[].content`  | `string`       | Text content of the file to write. Replaces `url` if present                                                                                                       |
 | `files[].via`      | `string`       | For `url`-based files, transformation to apply on downloaded file: `direct` (default): simple download, `bztar`, `gztar`, `tar`, `xztar`, `zip` to expand archives |
-| `files[].size`     | `string`/`int` | **Only for `*tar`/`zip`** should file be compressed. Specify expanded size. Assumes File-size (uncompressed) if not specified. ⚠️ Fails if lower than file size |
+| `files[].size`     | `string`/`int` | **Only for `*tar`/`zip`** should file be compressed. Specify expanded size. Assumes File-size (uncompressed) if not specified. ⚠️ Fails if lower than file size    |
+| `files[].checksum` | `Checksum dict`| Checksum definition for that file. See below.                                                                                                                      |
 | `write_config`     | `bool`         | Whether to write this file to `/data/conf/image.yaml`                                                                                                              |
 | `offspot`          | `dict`         | [runtime-config](https://github.com/offspot/runtime-config) configuration. Will be parsed and dumped to `/boot/offspot.yaml`                                       |
+
+### Checksum
+
+| Member             | Kind           | Function                                                                                                                                                           |
+|--------------------|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **`algo`**         | `string`       | Hashing algorithm. One of `sha-1`, `sha-224`, `sha-384`, `sha-512`, `md5`, `adler32`                                                                               |
+| **`value`**        | `string`       | Hex version of digest for algoritm **or** URL at which to read it (see `kind`)                                                                                     |
+| `kind`             | `string`       | Either `digest` (default) or `url`, meaning `value` is an URL at which the value is readable as text                                                               |
+
+_**Note**_: When using a `kind` of `url`, the URL must return the content as text. Text must be only the digest or the digest followed by a space and arbitrary (ignored) text (to satisfy the `md5sum` –and alike– command output format, which includes the filename).
+
+This URL feature is meant primarily to be used with MirrorBrain's automatic per-file-per-algorithm endpoints.
 
 ### Sample
 

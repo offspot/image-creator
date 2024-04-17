@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterable
 
 from natsort import natsorted
-from offspot_config.inputs import File
+from offspot_config.inputs.file import File
 from offspot_config.oci_images import OCIImage
 from offspot_config.utils.misc import (
     SimpleAttrs,

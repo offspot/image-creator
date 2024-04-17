@@ -15,7 +15,7 @@ Colors: dict[Status, ui.Color] = {
     Status.OK: ui.green,
     Status.NOK: ui.red,
 }
-warn = ui.UnicodeSequence(ui.brown, "⚠️", "[!]")
+warn = ui.UnicodeSequence(ui.brown, "⚠️ ", "[!]")  # noqa: RUF001
 
 
 class Logger:
@@ -180,7 +180,9 @@ class Logger:
         failed: bool = False,
     ):
         """record completed download, inside a task, potentially following progress"""
-        tokens = ["    ", warn if failed else ui.check, name]
+        tokens = ["    ", ui.check, name]
+        if failed:
+            tokens[1] = warn
         if size:
             tokens += [ui.brown, str(size)]
         if extra:
