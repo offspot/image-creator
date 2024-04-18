@@ -324,11 +324,12 @@ class DownloadingContent(Step):
                 raise DownloadError("Unknown Error")
 
             cache_suffix = " (cached)" if file in payload["cache"] else ""
+            chk_aria = file.checksum.as_aria if file.checksum else ""
             logger.complete_download(
                 dest_path.name,
                 size=format_size(get_size_of(dest_path)) + cache_suffix,
                 extra=(
-                    f"at {format_size(feedback.overall_speed)}/s"
+                    f"at {format_size(feedback.overall_speed)}/s {chk_aria}"
                     if feedback
                     else "(copied)"
                 ),

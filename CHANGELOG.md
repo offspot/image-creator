@@ -11,9 +11,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - [`utils.aria2`] `Downloader.get_feedback()` now includes overall `duration` and `speed`
 - Contents download now displays overall download stats with speed
-- Using offspot-config 2.0.0
+- Using offspot-config 2.1.0
 - Failed downloads clearly appear as such in logs
-- Checksum info for files (not base image) from config is passed to aria2 and checked
+- Checksum info for files and base-image from config is passed to aria2 and checked
+- Downloads display checksum if it was passed/used
 
 ### Fixed
 

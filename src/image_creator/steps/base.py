@@ -29,9 +29,16 @@ class DownloadImage(Step):
         target = payload["options"].output_path
 
         if base_file not in payload["cache"] and not base_file.is_local:
-            logger.start_task(f"Downloading {base_file.geturl()} into {target}…")
+            chk_aria = base_file.checksum.as_aria if base_file.checksum else ""
+            logger.start_task(
+                f"Downloading {base_file.geturl()} into {target}… {chk_aria}"
+            )
             try:
-                dl = payload["downloader"].add(base_file.geturl(), target)
+                dl = payload["downloader"].add(
+                    base_file.geturl(),
+                    target,
+                    checksum=chk_aria,
+                )
                 dl.block()
             except Exception as exc:
                 logger.fail_task(str(exc))
@@ -78,9 +85,16 @@ class DownloadImage(Step):
 
         # we need to download it first
         if base_file not in payload["cache"] and not base_file.is_local:
-            logger.start_task(f"Downloading {base_file.geturl()} into {xz_fpath}…")
+            chk_aria = base_file.checksum.as_aria if base_file.checksum else ""
+            logger.start_task(
+                f"Downloading {base_file.geturl()} into {xz_fpath}… {chk_aria}"
+            )
             try:
-                dl = payload["downloader"].add(base_file.geturl(), xz_fpath)
+                dl = payload["downloader"].add(
+                    base_file.geturl(),
+                    xz_fpath,
+                    checksum=chk_aria,
+                )
                 dl.block()
             except Exception as exc:
                 logger.fail_task(str(exc))
