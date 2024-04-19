@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterable
 
 from natsort import natsorted
-from offspot_config.inputs import File
+from offspot_config.inputs.file import File
 from offspot_config.oci_images import OCIImage
 from offspot_config.utils.misc import (
     SimpleAttrs,
@@ -24,7 +24,6 @@ from image_creator.cache.policy import (
     FilesPolicy,
     MainPolicy,
     OCIImagePolicy,
-    Policy,
 )
 from image_creator.constants import Global, logger
 from image_creator.utils.download import get_digest
@@ -206,7 +205,7 @@ class CacheCandidate(CacheEntry):
 
 
 def get_eviction_for(
-    entries: list[CacheEntry], policy: Policy | OCIImagePolicy | FilesPolicy
+    entries: list[CacheEntry], policy: MainPolicy | OCIImagePolicy | FilesPolicy
 ) -> list[tuple[CacheEntry, str]]:
     """list of (entry, reason) from entries that are expired or outdated"""
     if (

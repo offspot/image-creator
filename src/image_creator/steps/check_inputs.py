@@ -3,7 +3,7 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
-from offspot_config.inputs import MainConfig
+from offspot_config.inputs.mainconfig import MainConfig
 from offspot_config.utils.misc import format_size
 
 try:

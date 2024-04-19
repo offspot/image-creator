@@ -3,7 +3,7 @@ from __future__ import annotations
 import pathlib
 from typing import Any
 
-from offspot_config.inputs import File
+from offspot_config.inputs.file import File
 from offspot_config.utils.misc import (
     copy_file,
     extract_xz_image,
