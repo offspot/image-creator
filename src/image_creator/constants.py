@@ -76,6 +76,8 @@ class Options:
         self.build_dir = (
             pathlib.Path(self.BUILD_DIR or self.__build_dir.name).expanduser().resolve()
         )
+        if not self.build_dir.exists():
+            self.build_dir.mkdir(parents=True, exist_ok=True)
 
         if self.CACHE_DIR:
             self.cache_dir = pathlib.Path(self.CACHE_DIR).expanduser().resolve()
