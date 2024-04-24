@@ -13,6 +13,7 @@ from typing import Any
 import progressbar  # type: ignore
 from offspot_config.file import File
 from offspot_config.utils.misc import (
+    b64_decode,
     copy_file,
     ensure_dir,
     expand_file,
@@ -262,7 +263,17 @@ class ProcessingLocalContent(Step):
             logger.fail_task(str(exc))
             return 1
 
-        if file.is_plain:
+        if file.is_plain and file.is_base64_encoded:
+            logger.start_task(f"Writing base64 payload to {file.to}…")
+            try:
+                size = dest_path.write_bytes(b64_decode(file.content))
+            except Exception as exc:
+                logger.fail_task(str(exc))
+                return 1
+            else:
+                logger.succeed_task(format_size(size))
+            return 0
+        elif file.is_plain:
             logger.start_task(f"Writing plain text to {file.to}…")
             try:
                 size = dest_path.write_text(file.content)
