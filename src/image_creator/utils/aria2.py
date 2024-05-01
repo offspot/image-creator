@@ -906,13 +906,19 @@ class Downloader:
             started_ons.append(dl.started_on)
             completed_ons.append(dl.completed_on)
             feedbacks.append(feedback)
-        started_on = min(started_ons)
+
         completed_on = (
             max(completed_ons)
             if all(isinstance(item, datetime.datetime) for item in completed_ons)
             else datetime.datetime.now(tz=datetime.UTC)
         )
-        duration = completed_on - started_on
+        if started_ons:
+            started_on = min(started_ons)
+            duration = completed_on - started_on
+            general_speed = int(downloaded_bytes / duration.total_seconds())
+        else:
+            duration = datetime.timedelta(seconds=0)
+            general_speed = 0
 
         return GeneralFeedback(
             count=Progress(downloaded=downloaded_nb, total=total_nb, speed=0),
@@ -920,7 +926,7 @@ class Downloader:
                 downloaded=downloaded_bytes, total=total_bytes, speed=speed
             ),
             duration=duration,
-            speed=int(downloaded_bytes / duration.total_seconds()),
+            speed=general_speed,
             downloads=feedbacks,
         )
 
