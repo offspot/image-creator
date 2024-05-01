@@ -909,7 +909,8 @@ class Downloader:
 
         completed_on = (
             max(completed_ons)
-            if all(isinstance(item, datetime.datetime) for item in completed_ons)
+            if completed_ons
+            and all(isinstance(item, datetime.datetime) for item in completed_ons)
             else datetime.datetime.now(tz=datetime.UTC)
         )
         if started_ons:
