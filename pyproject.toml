@@ -50,8 +50,8 @@ test = [
 ]
 binary = [
   "ordered-set==4.1.0",
-  "zstandard==0.22.0",
-  "nuitka==2.0.5",
+  "zstandard==0.25.0",
+  "nuitka==2.8.9",
   "requests==2.31.0",
 ]
 dev = [
