@@ -213,13 +213,27 @@ def check_third_partition_device(dev_path: str):
 
 def fsck_ext4(dev_path: str):
     """check disk or patition, auto fixing what's possible"""
-    subprocess.run(
-        ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", str(dev_path)],
-        check=True,
+    command = ["/usr/bin/env", "fsck.ext4", "-y", "-f", "-v", str(dev_path)]
+    ps = subprocess.run(
+        command,
+        check=False,
         capture_output=only_on_debug,
         text=True,
         env=get_environ(),
     )
+    # fsck.ext4 has “acceptable” non-zero return codes:
+    # 0 - No errors
+    # 1 - File system errors corrected
+    # 2 - File system errors corrected, system should be rebooted
+    # 4 - File system errors left uncorrected
+    # 8 - Operational error
+    # 16 - Usage or syntax error
+    # 32 - E2fsck canceled by user request
+    # 128 - Shared library error
+    if ps.returncode not in (0, 1, 2):
+        raise OSError(
+            f"Command {command!s} returned unexpected exit status {ps.returncode!s}."
+        )
 
 
 def resize_third_partition(dev_path: str):
