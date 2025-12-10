@@ -10,7 +10,7 @@ env:
 jobs:
   build-binary:
     # building on ubuntu-20.04 so we'll link to glibc 2.31 (bullseye+)
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -54,4 +54,3 @@ jobs:
           curl -u "${{ secrets.DRIVE_CREDENTIALS }}" -T "/tmp/${{ env.BIN_FILENAME }}" -sw '%{http_code}' "https://drive.offspot.it/_webdav/image-creator/${{ env.BIN_FILENAME }}"
           echo "### Artefacts" >> $GITHUB_STEP_SUMMARY
           echo "- [${{ env.BIN_FILENAME }}](https://drive.offspot.it/image-creator/${{ env.BIN_FILENAME }})" >> $GITHUB_STEP_SUMMARY
-
