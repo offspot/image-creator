@@ -51,6 +51,6 @@ jobs:
       - name: Upload base image to WebDAV
         run: |
           echo "Uploading image ${{ env.BIN_FILENAME }} & info to WebDAV..."
-          curl -u "${{ secrets.DRIVE_CREDENTIALS }}" -T "/tmp/${{ env.BIN_FILENAME }}" -sw '%{http_code}' "https://drive.offspot.it/_webdav/image-creator/${{ env.BIN_FILENAME }}"
+          curl -u "${{ secrets.DRIVE_CREDENTIALS }}" -T "/tmp/${{ env.BIN_FILENAME }}" -sw '%{http_code}' "https://drive.offspot.it/image-creator/${{ env.BIN_FILENAME }}"
           echo "### Artefacts" >> $GITHUB_STEP_SUMMARY
           echo "- [${{ env.BIN_FILENAME }}](https://drive.offspot.it/image-creator/${{ env.BIN_FILENAME }})" >> $GITHUB_STEP_SUMMARY

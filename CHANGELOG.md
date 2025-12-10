@@ -5,11 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- [workflows] Uploading to correct folder (#41)
+
 ## [1.1.4] - 2025-12-10
 
 ### Fixed
 
 - Accepting fsck.ext4 returning 1 or 2 in addition to 0 (#40)
+
+### Changed
+
+- Building with Nuitka 2.8.9
 
 ## [1.1.3] - 2024-05-01
 
