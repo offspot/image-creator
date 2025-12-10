@@ -17,7 +17,7 @@ from image_creator import __version__
 
 ARIA2_RELEASE = (
     "https://github.com/abcfy2/aria2-static-build/releases/download/1.37.0/"
-    "aria2-x86_64-linux-musl_libressl_static.zip"
+    "aria2-x86_64-linux-musl_static.zip"
 )
 ARIA2_BIN = pathlib.Path("aria2c")
 use_pty = not os.getenv("CI", "")
