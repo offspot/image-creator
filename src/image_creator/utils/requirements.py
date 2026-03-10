@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import re
-import subprocess
+import subprocess  # noqa: S404
 
 help_text = """
 Requirements
@@ -41,7 +41,7 @@ def is_root() -> bool:
 
 def has_ext4_support() -> bool:
     """whether ext4 filesystem is enabled"""
-    with open("/proc/filesystems") as fh:
+    with open("/proc/filesystems", encoding="ASCII") as fh:
         for line in fh.readlines():
             if re.match(r"\s*ext4\s?$", line.strip()):
                 return True

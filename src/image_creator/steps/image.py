@@ -5,7 +5,7 @@ from typing import Any
 from offspot_config.utils.misc import format_size
 
 from image_creator.constants import logger
-from image_creator.steps import Step
+from image_creator.steps.step import Step
 from image_creator.utils.image import Image
 
 

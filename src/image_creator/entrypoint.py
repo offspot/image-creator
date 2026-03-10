@@ -80,8 +80,8 @@ def main():
     kwargs = dict(parser.parse_args()._get_kwargs())
     Global._debug = kwargs.get("debug", False)
 
-    # purposedly import after setting debug
-    from image_creator.creator import ImageCreator
+    # purposely import after setting debug
+    from image_creator.creator import ImageCreator  # noqa: PLC0415
 
     try:
         app = ImageCreator(

@@ -42,7 +42,8 @@ def path_for_image(image: OCIImage) -> pathlib.Path:
     if image.oci.digest:
         fname += f"@{image.oci.digest}"
     return (
-        pathlib.Path("images")
+        pathlib
+        .Path("images")
         .joinpath(image.oci.registry)
         .joinpath(image.oci.repository)
         .joinpath(fname)
@@ -74,7 +75,8 @@ def path_for_file(file: File) -> pathlib.Path:
         fname += f"#{file.url.fragment}"
 
     return (
-        pathlib.Path("files")
+        pathlib
+        .Path("files")
         .joinpath(file.url.scheme)
         .joinpath(file.url.netloc)
         # excluding last part (basename) and first (leading slash)
@@ -250,9 +252,7 @@ def get_eviction_for(
         return
 
     if hasattr(policy, "filters"):
-        for (
-            filter_
-        ) in (
+        for filter_ in (
             policy.filters  # pyright: ignore [reportAttributeAccessIssue, reportGeneralTypeIssues]
         ):
             filter_num = 0
@@ -277,32 +277,30 @@ def get_eviction_for(
                     continue
 
                 if filter_.max_age_dt and entry.added_on < filter_.max_age_dt:
-                    evictions.append(
+                    evictions.append((
+                        entry,
                         (
-                            entry,
                             "Too old for filter max_age "
-                            f"({format_duration(filter_.max_age_seconds)})",
-                        )
-                    )
+                            f"({format_duration(filter_.max_age_seconds)})"
+                        ),
+                    ))
                     continue
 
                 if filter_.max_size and filter_size + entry.size > filter_.max_size:
-                    evictions.append(
+                    evictions.append((
+                        entry,
                         (
-                            entry,
                             "Would exceed filter max_size "
-                            f"({format_size(filter_.max_size_bytes)})",
-                        )
-                    )
+                            f"({format_size(filter_.max_size_bytes)})"
+                        ),
+                    ))
                     continue
 
                 if filter_.max_num and filter_num + 1 > filter_.max_num:
-                    evictions.append(
-                        (
-                            entry,
-                            f"Would exceed filter max_num ({filter_.max_num}",
-                        )
-                    )
+                    evictions.append((
+                        entry,
+                        f"Would exceed filter max_num ({filter_.max_num}",
+                    ))
                     continue
 
                 # if filter requested version numbers, keep a list of candidates
@@ -329,17 +327,13 @@ def get_eviction_for(
                     # sort (naturally) by version (from filename)
                     for obsolete in natsorted(
                         item["entries"],
-                        key=lambda item: matched_ident_version(
-                            item
-                        ).version,  # pyright: ignore [reportOptionalMemberAccess]
+                        key=lambda item: matched_ident_version(item).version,  # pyright: ignore [reportOptionalMemberAccess]
                     )[: -filter_.keep_identified_versions]:
-                        evictions.append(
-                            (
-                                obsolete,
-                                "Version now obsolete (keeping "
-                                f"only {filter_.keep_identified_versions})",
-                            )
-                        )
+                        evictions.append((
+                            obsolete,
+                            ("Version now obsolete (keeping "
+                            f"only {filter_.keep_identified_versions})"),
+                        ))
 
     total_versioned_entries = {}
 
@@ -353,33 +347,26 @@ def get_eviction_for(
             continue
 
         if policy.max_age_dt and entry.added_on < policy.max_age_dt:
-            evictions.append(
-                (
-                    entry,
-                    f"Too old for {type(policy).__name__} max_age "
-                    f"({format_duration(policy.max_age_seconds)})",
-                )
-            )
+            evictions.append((
+                entry,
+                (f"Too old for {type(policy).__name__} max_age "
+                f"({format_duration(policy.max_age_seconds)})"),
+            ))
             continue
 
         if policy.max_size and total_size + entry.size > policy.max_size:
-            evictions.append(
-                (
-                    entry,
-                    f"Would exceed {type(policy).__name__} max_size "
-                    f"({format_size(policy.max_size_bytes)})",
-                )
-            )
+            evictions.append((
+                entry,
+                (f"Would exceed {type(policy).__name__} max_size "
+                f"({format_size(policy.max_size_bytes)})"),
+            ))
             continue
 
         if policy.max_num and total_num + 1 > policy.max_num:
-            evictions.append(
-                (
-                    entry,
-                    f"Would exceed {type(policy).__name__} max_num "
-                    f"({policy.max_num})",
-                )
-            )
+            evictions.append((
+                entry,
+                f"Would exceed {type(policy).__name__} max_num ({policy.max_num})",
+            ))
             continue
 
         # if filter requested version numbers, keep a list of candidates
@@ -406,17 +393,13 @@ def get_eviction_for(
             # sort (naturally) by version (from filename)
             for obsolete in natsorted(
                 item["entries"],
-                key=lambda item: matched_ident_version(
-                    item
-                ).version,  # pyright: ignore [reportOptionalMemberAccess]
+                key=lambda item: matched_ident_version(item).version,  # pyright: ignore [reportOptionalMemberAccess]
             )[: -policy.keep_identified_versions]:
-                evictions.append(
-                    (
-                        obsolete,
-                        "Version now obsolete (keeping "
-                        f"only {policy.keep_identified_versions})",
-                    )
-                )
+                evictions.append((
+                    obsolete,
+                    ("Version now obsolete (keeping "
+                    f"only {policy.keep_identified_versions})"),
+                ))
 
     return evictions
 
@@ -463,7 +446,7 @@ class CacheManager(dict):
         """total size of cache"""
         if not self.discovered:
             self.walk()
-        return sum([entry.size for entry in self.entries.values()])
+        return sum(entry.size for entry in self.entries.values())
 
     def get(self, item: Item) -> CacheEntry:
         """CacheEntry for Item"""

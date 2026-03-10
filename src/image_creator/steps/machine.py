@@ -4,7 +4,6 @@ from typing import ClassVar
 
 from image_creator.constants import logger
 from image_creator.logger import Status
-from image_creator.steps import GivingFeedback, VirtualInitStep
 from image_creator.steps.base import DownloadImage
 from image_creator.steps.cache import ApplyCachePolicy, CheckCache, PrintingCache
 from image_creator.steps.check_inputs import (
@@ -28,6 +27,7 @@ from image_creator.steps.image import (
 )
 from image_creator.steps.oci_images import DownloadingOCIImages
 from image_creator.steps.sizes import ComputeSizes
+from image_creator.steps.step import GivingFeedback, VirtualInitStep
 
 
 class StepMachine:
@@ -76,7 +76,7 @@ class StepMachine:
         cls.steps.remove(stepcls)
 
     def _get_step(self, index: int):
-        return self.steps[index].__call__()
+        return self.steps[index]()
 
     @property
     def step_num(self):

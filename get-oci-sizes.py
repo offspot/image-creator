@@ -25,7 +25,7 @@
 """
 
 import pathlib
-import subprocess
+import subprocess  # noqa: S404
 import sys
 import tarfile
 import tempfile
