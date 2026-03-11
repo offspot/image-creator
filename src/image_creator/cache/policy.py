@@ -231,11 +231,11 @@ class MainPolicy(Policy):
         payload = yaml_load(text, Loader=SafeLoader)
 
         # Subpolicies have subclasses for human-friendlyness
-        _sub_policy_map = {"oci_images": OCIImagePolicy, "files": FilesPolicy}
+        sub_policy_map = {"oci_images": OCIImagePolicy, "files": FilesPolicy}
 
         # build SubPolicies first (args of the main Policy)
         for name in cls.sub_names():
-            sub_policy_cls = _sub_policy_map.get(name, SubPolicy)
+            sub_policy_cls = sub_policy_map.get(name, SubPolicy)
 
             # remove he key from payload ; we'll replace it with actual SubPolocy
             subload = payload.pop(name, None)

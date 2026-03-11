@@ -9,7 +9,7 @@ from offspot_config.oci_images import OCIImage
 from offspot_config.utils.misc import copy_file, format_size, get_filesize, rmtree
 
 from image_creator.constants import Global, logger
-from image_creator.steps import Step
+from image_creator.steps.step import Step
 
 
 def download_image(image: OCIImage, dest: pathlib.Path, build_dir: pathlib.Path):

@@ -18,7 +18,7 @@ Colors: dict[Status, ui.Color] = {
 warn = ui.UnicodeSequence(ui.brown, "⚠️ ", "[!]")  # noqa: RUF001
 
 
-class Logger:
+class Logger:  # noqa: PLR0904
     """Custom cli_ui-based logger providing ~unified UI for steps and tasks
 
     Operations are either Steps or tasks within a Step
@@ -123,7 +123,7 @@ class Logger:
 
     def clear(self):
         """clear in-task or in-step same-line hanging to prevent writing to previous"""
-        if self.currently in ("task",):
+        if self.currently in {"task"}:
             ui.info("")
 
     def start_step(self, step: str):
@@ -146,7 +146,7 @@ class Logger:
         ui.message("  ", ui.bold, ui.blue, "=>", ui.reset, task, end=" ")
         ui.CONFIG["timestamp"] = False
 
-    def end_task(self, success: bool | None = None, message: str | None = None):
+    def end_task(self, *, success: bool | None = None, message: str | None = None):
         """End current task with custom success symbol and message"""
         tokens = [] if success is None else [ui.check if success else ui.cross]
         if message:

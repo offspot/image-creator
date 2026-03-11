@@ -8,7 +8,7 @@ from offspot_config.utils.misc import supports_xattr
 from image_creator.cache.manager import CacheManager
 from image_creator.cache.policy import MainPolicy
 from image_creator.constants import logger
-from image_creator.steps import Step
+from image_creator.steps.step import Step
 
 
 class CheckCache(Step):

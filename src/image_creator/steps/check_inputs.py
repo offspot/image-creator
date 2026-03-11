@@ -16,7 +16,7 @@ except ImportError:
 
 
 from image_creator.constants import Global, logger
-from image_creator.steps import Step
+from image_creator.steps.step import Step
 from image_creator.utils import requirements
 from image_creator.utils.download import read_text_from
 
@@ -77,7 +77,7 @@ class CheckInputs(Step):
             "check_target_location",
             "check_target_nondestructive",
         ):
-            res = getattr(self, method).__call__(payload)
+            res = getattr(self, method)(payload)
             if res != 0:
                 return res
 
@@ -248,10 +248,10 @@ class CheckURLs(Step):
             if payload["cache"].candidates:
                 nb_candidates = len(payload["cache"].candidates)
                 size_candidates = sum(
-                    [entry.size for entry in payload["cache"].candidates.values()]
+                    entry.size for entry in payload["cache"].candidates.values()
                 )
                 msgs.append(f"{nb_candidates} to add ({format_size(size_candidates)})")
-            logger.end_task(message=". ".join(msgs))
+            logger.end_task(success=None, message=". ".join(msgs))
 
         return 0 if all_valid else 4
 

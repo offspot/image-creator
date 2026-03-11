@@ -5,7 +5,7 @@ import re
 import shutil
 import signal
 import socket
-import subprocess
+import subprocess  # noqa: S404
 import tempfile
 import time
 import uuid
@@ -14,7 +14,12 @@ from pathlib import Path
 from typing import NamedTuple, Self
 
 import aria2p
-from requests.exceptions import ConnectionError, RequestException
+from requests.exceptions import (
+    ConnectionError as RequestsConnectionError,
+)
+from requests.exceptions import (
+    RequestException,
+)
 
 from image_creator import __version__
 from image_creator.constants import logger
@@ -205,7 +210,7 @@ class Aria2Process:
             time.sleep(1)
 
 
-class Download(aria2p.Download):
+class Download(aria2p.Download):  # noqa: PLR0904
     """aria2p Download subclass with additional accessors
 
     You would mostly be receiving them from Downloader.add()"""
@@ -277,7 +282,9 @@ class Download(aria2p.Download):
         if succeeded is None:
             return True
         if succeeded is False:
-            raise DownloadError(*self.error)
+            if self.error:
+                raise DownloadError(*self.error)
+            raise DownloadError("Unknown error")
         return False
 
     @property
@@ -395,7 +402,7 @@ class Download(aria2p.Download):
     def update(self):
         try:
             super().update()
-        except (RequestException, ConnectionError) as exc:
+        except (RequestException, RequestsConnectionError) as exc:
             if not self.done:
                 raise exc
 
@@ -515,13 +522,13 @@ class Download(aria2p.Download):
     def followers_active(self):
         """Whether this has still active followers"""
         return any(
-            dl.status in ("active", "waiting", "paused") for dl in self.followed_by
+            dl.status in {"active", "waiting", "paused"} for dl in self.followed_by
         )
 
     @property
     def active(self):
         """Whether this very download is active"""
-        return self.status in ("active", "waiting", "paused")
+        return self.status in {"active", "waiting", "paused"}
 
     @property
     def actual_files(self) -> list[aria2p.File]:
@@ -544,7 +551,7 @@ class Download(aria2p.Download):
 
             # WARN: this is our Kiwix convention. Could be anything.
             # maybe retrieve Content Type initially
-            if self.is_metalink and file.path.suffix in (".meta4", ".metalink"):
+            if self.is_metalink and file.path.suffix in {".meta4", ".metalink"}:
                 return False
             if self.is_torrent and file.path.suffix == ".torrent":
                 return False
@@ -569,7 +576,6 @@ class Download(aria2p.Download):
             return
 
         if not self.error:
-
             # we only post-process the metadata dl (once all followers have completed)
             if self.is_torrent and not self.is_metadata:
                 return
@@ -694,7 +700,6 @@ class Downloader:
         # not for BT, not for ML if pieces hashes
         ("piece_length", "1M"),
         ("optimize_concurrent_downloads", "false"),
-        #
         ("rpc_save_upload_metadata", True),
         ("user_agent", f"offspot image-creator/{__version__}"),
         ("force_sequential", False),
@@ -1030,7 +1035,7 @@ class Downloader:
         """aria2p.API callback for a stopped download"""
         if not self.is_ours(gid):
             return
-        logger.debug("Download #{gid} has been stopped")
+        logger.debug(f"Download #{gid} has been stopped")
         dl = self.get(gid)
 
         if dl.callback:

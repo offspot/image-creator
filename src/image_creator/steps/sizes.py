@@ -6,7 +6,7 @@ from typing import Any
 from offspot_config.utils.misc import format_size, get_freespace
 
 from image_creator.constants import logger
-from image_creator.steps import Step
+from image_creator.steps.step import Step
 
 
 def round_for_cluster(size: int) -> int:
@@ -39,13 +39,13 @@ class ComputeSizes(Step):
 
     def run(self, payload: dict[str, Any]) -> int:
         tar_images_size = sum(
-            [image.filesize for image in payload["config"].all_images]
+            image.filesize for image in payload["config"].all_images
         )
         expanded_images_size = sum(
-            [image.fullsize for image in payload["config"].all_images]
+            image.fullsize for image in payload["config"].all_images
         )
         expanded_files_size = sum(
-            [file.fullsize for file in payload["config"].all_files]
+            file.fullsize for file in payload["config"].all_files
         )
 
         raw_content_size = sum(
@@ -110,21 +110,19 @@ class ComputeSizes(Step):
         remote_compressed_files = [
             file for file in payload["config"].remote_files if file.via != "direct"
         ]
-        needs["build_dir"] = sum([file.size for file in remote_compressed_files])
+        needs["build_dir"] = sum(file.size for file in remote_compressed_files)
 
         # cache needs:
         # - what will be introduced to cache
         if payload["options"].cache_dir:
             needs["cache_dir"] = sum(
-                [entry.size for entry in payload["cache"].candidates.values()]
+                entry.size for entry in payload["cache"].candidates.values()
             )
             # exclude from build-dir the size of those we'll have in cache
             needs["build_dir"] -= sum(
-                [
-                    file.size
+                file.size
                     for file in remote_compressed_files
                     if file in payload["cache"] or payload["cache"].has_candidate(file)
-                ]
             )
         return needs
 

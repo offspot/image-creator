@@ -15,47 +15,51 @@ license = {text = "GPL-3.0-or-later"}
 classifiers = [
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
 dependencies = [
-    "requests==2.31.0",
+    "requests==2.32.5",
+    "types-requests==2.32.4.20260107",
     "PyYAML==6.0.1",
-    "cli-ui==0.17.2",
+    "cli-ui==0.19.0",
     "humanfriendly==10.0",
-    "progressbar2==4.4.2",
-    "docker-export==1.1.0",
-    "typeguard==4.1.5",
-    "offspot-config==2.2.0",
+    "progressbar2==4.5.0",
+    "docker-export==1.2.0",
+    "typeguard==4.5.1",
+    "offspot-config==2.9.2",
     # "offspot-config@git+https://github.com/offspot/offspot-config#egg=main",
     "natsort==8.4.0",
-    "aria2p==0.12.0",
+    "aria2p==0.12.1",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 scripts = [
-  "invoke==2.2.0",
+  "invoke==2.2.1",
+  "types-invoke==2.0.0.10",
 ]
 lint = [
-  "black==24.2.0",
-  "ruff==0.2.2",
+  "ruff==0.15.5",
 ]
 check = [
-  "pyright==1.1.358",
+  "pyright==1.1.408",
 ]
 test = [
-  "pytest==8.0.2",
-  "pytest-cov==4.1.0",
-  "coverage==7.4.3",
+  "pytest==9.0.2",
+  "pytest-cov==7.0.0",
+  "coverage==7.13.4",
 ]
 binary = [
   "ordered-set==4.1.0",
   "zstandard==0.25.0",
-  "nuitka==2.8.9",
-  "requests==2.31.0",
+  "nuitka==4.0.3",
+  "requests==2.32.5",
 ]
 dev = [
-  "pre-commit==3.6.0",
+  "pre-commit==4.5.1",
   "image-creator[scripts]",
   "image-creator[lint]",
   "image-creator[test]",
@@ -81,7 +85,7 @@ exclude = [
 ]
 
 [[tool.hatch.envs.default.matrix]]
-python = ["3.11"]
+python = ["3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.default]
 features = ["dev"]
@@ -90,7 +94,7 @@ features = ["dev"]
 features = ["scripts", "test"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.11"]
+python = ["3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.test.scripts]
 run = "inv test --args '{args}'"
@@ -115,6 +119,9 @@ fixall = "inv fixall --args '{args}'"
 [tool.hatch.envs.check]
 features = ["scripts", "check"]
 
+[[tool.hatch.envs.check.matrix]]
+python = ["3.11", "3.12", "3.13", "3.14"]
+
 [tool.hatch.envs.check.scripts]
 pyright = "inv check-pyright --args '{args}'"
 all = "inv checkall --args '{args}'"
@@ -123,22 +130,21 @@ all = "inv checkall --args '{args}'"
 features = ["scripts", "binary"]
 
 [[tool.hatch.envs.binary.matrix]]
-python = ["3.11"]
+python = ["3.13"]
 
 [tool.hatch.envs.binary.scripts]
 build = "inv binary --filename '{args}'"
 download-aria2 = "inv download-aria2c"
 
-[tool.black]
-line-length = 88
-target-version = ['py311']
-
 [tool.ruff]
-target-version = "py311"
 line-length = 88
 src = ["src"]
 
+[tool.ruff.format]
+preview = true
+
 [tool.ruff.lint]
+preview = true
 select = [
   "A",  # flake8-builtins
   # "ANN",  # flake8-annotations
@@ -210,7 +216,9 @@ ignore = [
   # Ignore complexity
   "C901", "PLR0911", "PLR0912", "PLR0913", "PLR0915",
   # naive UTC timezones
-  "DTZ003"
+  "DTZ003",
+  # allow method that dont use self
+  "PLR6301",
 ]
 unfixable = [
   # Don't touch unused imports
@@ -219,10 +227,6 @@ unfixable = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["image_creator"]
-
-[tool.ruff.lint.flake8-bugbear]
-# add exceptions to B008 for fastapi.
-extend-immutable-calls = ["fastapi.Depends", "fastapi.Query"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

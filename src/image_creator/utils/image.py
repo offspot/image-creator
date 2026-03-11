@@ -5,7 +5,7 @@ import logging
 import os
 import pathlib
 import re
-import subprocess
+import subprocess  # noqa: S404
 import tempfile
 import time
 
@@ -160,13 +160,17 @@ def get_device_sectors(dev_path: str) -> int:
     """number of sectors composing this device"""
 
     dev_name = get_loop_name(dev_path)
-    return int(pathlib.Path(f"/sys/block/{dev_name}/size").read_text())
+    return int(pathlib.Path(f"/sys/block/{dev_name}/size").read_text(encoding="ASCII"))
 
 
 def get_thirdpart_start_sector(dev_path) -> int:
     """Start sector number of third partition of device"""
     dev_name = get_loop_name(dev_path)
-    return int(pathlib.Path(f"/sys/block/{dev_name}/{dev_name}p3/start").read_text())
+    return int(
+        pathlib.Path(f"/sys/block/{dev_name}/{dev_name}p3/start").read_text(
+            encoding="ASCII"
+        )
+    )
 
 
 def check_third_partition_device(dev_path: str):
@@ -230,7 +234,7 @@ def fsck_ext4(dev_path: str):
     # 16 - Usage or syntax error
     # 32 - E2fsck canceled by user request
     # 128 - Shared library error
-    if ps.returncode not in (0, 1, 2):
+    if ps.returncode not in {0, 1, 2}:
         raise OSError(
             f"Command {command!s} returned unexpected exit status {ps.returncode!s}."
         )

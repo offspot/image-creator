@@ -23,7 +23,7 @@ from offspot_config.utils.misc import (
 
 from image_creator.cache.manager import CacheManager
 from image_creator.constants import logger
-from image_creator.steps import Step
+from image_creator.steps.step import Step
 from image_creator.utils.aria2 import Download, Downloader, DownloadError, Feedback
 
 
@@ -168,7 +168,7 @@ class Aria2DownloadProgressBar:
 class FilesProcessor:
     """Downloads the File objects supplied using a ThreadPoolExecutor"""
 
-    def __init__(
+    def __init__(  # noqa: PLR0917
         self,
         files,
         cache: CacheManager,
@@ -347,7 +347,7 @@ class DownloadingContent(Step):
             )
 
         bytes_total = sum(
-            [file.size if file.size else 0 for file in payload["config"].remote_files]
+            file.size if file.size else 0 for file in payload["config"].remote_files
         )
 
         manager = FilesProcessor(
