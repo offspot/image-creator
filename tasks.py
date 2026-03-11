@@ -177,7 +177,7 @@ def binary(ctx: Context, filename: str = "", *, no_compress: bool = False):
         "-m",
         "nuitka",
         "--onefile",
-        "--python-flag=no_site,no_warnings,no_asserts,no_docstrings",
+        "--python-flag=no_site,no_asserts,no_docstrings",
         "--include-package=image_creator",
         "--include-data-files=aria2c=aria2c",
         "--show-modules",
