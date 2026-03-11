@@ -9,8 +9,8 @@ env:
 
 jobs:
   build-binary:
-    # building on ubuntu-20.04 so we'll link to glibc 2.31 (bullseye+)
-    runs-on: ubuntu-24.04
+    # building on ubuntu-22.04 so we'll link to glibc 2.35 (bookworm+)
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v3
