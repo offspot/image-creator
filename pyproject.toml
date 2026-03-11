@@ -17,6 +17,7 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
 ]
 dependencies = [
@@ -84,7 +85,7 @@ exclude = [
 ]
 
 [[tool.hatch.envs.default.matrix]]
-python = ["3.11"]
+python = ["3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.default]
 features = ["dev"]
@@ -93,7 +94,7 @@ features = ["dev"]
 features = ["scripts", "test"]
 
 [[tool.hatch.envs.test.matrix]]
-python = ["3.11"]
+python = ["3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.test.scripts]
 run = "inv test --args '{args}'"
@@ -117,6 +118,9 @@ fixall = "inv fixall --args '{args}'"
 
 [tool.hatch.envs.check]
 features = ["scripts", "check"]
+
+[[tool.hatch.envs.check.matrix]]
+python = ["3.11", "3.12", "3.13", "3.14"]
 
 [tool.hatch.envs.check.scripts]
 pyright = "inv check-pyright --args '{args}'"
